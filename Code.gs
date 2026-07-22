@@ -22,10 +22,20 @@ var ABA_CLIENTES = "Clientes";
 var ABA_MOTORISTAS = "Motoristas";
 var ABA_CONFERENTES = "Conferentes";
 var ABA_CONFIG = "Config";
+var ABA_FILIAIS = "Filiais";
 var NUMERO_INICIAL = 1;
 var PRECO_PADRAO = 10;
 /** Senha para apagar vales (deve bater com config.js) */
 var SENHA_EXCLUSAO = "1982";
+/** Filiais oficiais (usuário = nome da filial). Senha só no 1º acesso. */
+var FILIAIS_PADRAO = [
+  "ALTAMIRA",
+  "GOIANIA",
+  "RIO DE JANEIRO",
+  "SERRA",
+  "BRASILIA",
+  "GUARULHOS",
+];
 
 function doGet(e) {
   return rotear_(extrairDados_(e));
@@ -125,7 +135,7 @@ function rotear_(dados) {
     }
 
     if (action === "buscar_vale") {
-      return buscarVale_(dados.numero);
+      return buscarVale_(dados.numero, dados.filial);
     }
 
     if (action === "apagar_vale") {
@@ -134,6 +144,14 @@ function rotear_(dados) {
 
     if (action === "baixar_vale") {
       return baixarVale_(dados);
+    }
+
+    if (action === "listar_filiais") {
+      return listarFiliais_();
+    }
+
+    if (action === "login") {
+      return loginFilial_(dados);
     }
 
     if (action === "listar_clientes") {
@@ -249,6 +267,11 @@ function emitir_(dados) {
       });
     }
 
+    var filial = exigirFilialLogada_(dados.filial, dados.senhaFilial || dados.senha_filial);
+    if (filial.erro) {
+      return json_({ ok: false, erro: filial.erro });
+    }
+
     var agora = Utilities.formatDate(
       new Date(),
       "America/Sao_Paulo",
@@ -270,6 +293,7 @@ function emitir_(dados) {
       "",
       conferenteExpedidor,
       conferenteRecebedor,
+      filial.nome,
     ]);
 
     // Garante o cliente no banco de clientes
@@ -285,7 +309,8 @@ function emitir_(dados) {
       proximo: numero + 1,
       valor: valorTexto,
       precoUnitario: preco,
-      mensagem: "Vale Nº " + numero + " salvo.",
+      filial: filial.nome,
+      mensagem: "Vale Nº " + numero + " salvo (" + filial.nome + ").",
     });
   } finally {
     lock.releaseLock();
@@ -301,10 +326,11 @@ function listarVales_(dados) {
     return json_({ ok: true, vales: [] });
   }
 
-  var rows = sheet.getRange(2, 1, ultima, 14).getValues();
+  var rows = sheet.getRange(2, 1, ultima, 15).getValues();
   var filtro = String(dados.filtro || dados.q || "")
     .trim()
     .toLowerCase();
+  var filialFiltro = normalizarFilial_(dados.filial || "");
   var limite = Number(dados.limite) || 100;
   var vales = [];
 
@@ -327,8 +353,13 @@ function listarVales_(dados) {
       baixadoEm: r[11] || "",
       conferenteExpedidor: r[12] || "",
       conferenteRecebedor: r[13] || "",
+      filial: String(r[14] || "").trim(),
       data: [r[4], r[5], r[6]].filter(Boolean).join("/") || "",
     };
+
+    if (filialFiltro && normalizarFilial_(item.filial) !== filialFiltro) {
+      continue;
+    }
 
     if (filtro) {
       var blob = [
@@ -340,6 +371,7 @@ function listarVales_(dados) {
         item.placa,
         item.conferenteExpedidor,
         item.conferenteRecebedor,
+        item.filial,
         item.status,
         item.data,
         item.emitidoEm,
@@ -353,7 +385,7 @@ function listarVales_(dados) {
     if (vales.length >= limite) break;
   }
 
-  return json_({ ok: true, vales: vales });
+  return json_({ ok: true, vales: vales, filial: filialFiltro || "" });
 }
 
 /** Aceita só linhas de vale real (ignora cabeçalho e linhas vazias) */
@@ -377,7 +409,7 @@ function ehLinhaValeValida_(r) {
   return !isNaN(n) && isFinite(n) && n > 0;
 }
 
-function buscarVale_(numero) {
+function buscarVale_(numero, filialOpcional) {
   var sheet = obterAbaVales_();
   var ultima = sheet.getLastRow();
   if (ultima < 2) {
@@ -385,11 +417,19 @@ function buscarVale_(numero) {
   }
 
   var alvo = Number(numero);
-  var rows = sheet.getRange(2, 1, ultima, 14).getValues();
+  var filialFiltro = normalizarFilial_(filialOpcional || "");
+  var rows = sheet.getRange(2, 1, ultima, 15).getValues();
 
   for (var i = 0; i < rows.length; i++) {
     if (Number(rows[i][0]) === alvo) {
       var r = rows[i];
+      var filialVale = String(r[14] || "").trim();
+      if (filialFiltro && normalizarFilial_(filialVale) !== filialFiltro) {
+        return json_({
+          ok: false,
+          erro: "Vale Nº " + numero + " não pertence à filial " + filialFiltro + ".",
+        });
+      }
       return json_({
         ok: true,
         vale: {
@@ -407,6 +447,7 @@ function buscarVale_(numero) {
           baixadoEm: r[11] || "",
           conferenteExpedidor: r[12] || "",
           conferenteRecebedor: r[13] || "",
+          filial: filialVale,
         },
       });
     }
@@ -425,6 +466,7 @@ function apagarVale_(dados) {
     return json_({ ok: false, erro: "Número do vale inválido." });
   }
 
+  var filialFiltro = normalizarFilial_(dados.filial || "");
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);
 
@@ -435,9 +477,16 @@ function apagarVale_(dados) {
       return json_({ ok: false, erro: "Nenhum vale para apagar." });
     }
 
-    var rows = sheet.getRange(2, 1, ultima, 1).getValues();
+    var rows = sheet.getRange(2, 1, ultima, 15).getValues();
     for (var i = 0; i < rows.length; i++) {
       if (Number(rows[i][0]) === numero) {
+        var filialVale = normalizarFilial_(rows[i][14] || "");
+        if (filialFiltro && filialVale && filialVale !== filialFiltro) {
+          return json_({
+            ok: false,
+            erro: "Vale Nº " + numero + " não pertence à filial " + filialFiltro + ".",
+          });
+        }
         sheet.deleteRow(i + 2);
         return json_({
           ok: true,
@@ -466,6 +515,7 @@ function baixarVale_(dados) {
     return json_({ ok: false, erro: "Número do vale inválido." });
   }
 
+  var filialFiltro = normalizarFilial_(dados.filial || "");
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);
 
@@ -476,9 +526,17 @@ function baixarVale_(dados) {
       return json_({ ok: false, erro: "Nenhum vale encontrado." });
     }
 
-    var rows = sheet.getRange(2, 1, ultima, 12).getValues();
+    var rows = sheet.getRange(2, 1, ultima, 15).getValues();
     for (var i = 0; i < rows.length; i++) {
       if (Number(rows[i][0]) !== numero) continue;
+
+      var filialVale = normalizarFilial_(rows[i][14] || "");
+      if (filialFiltro && filialVale && filialVale !== filialFiltro) {
+        return json_({
+          ok: false,
+          erro: "Vale Nº " + numero + " não pertence à filial " + filialFiltro + ".",
+        });
+      }
 
       var statusAtual = normalizarStatusVale_(rows[i][10]);
       if (statusAtual === "FECHADO") {
@@ -507,6 +565,7 @@ function baixarVale_(dados) {
         numero: numero,
         status: "FECHADO",
         baixadoEm: agora,
+        filial: filialVale || "",
         mensagem: "Vale Nº " + numero + " fechado com sucesso.",
       });
     }
@@ -1075,6 +1134,7 @@ function garantirEstrutura_() {
   obterAbaMotoristas_();
   obterAbaConferentes_();
   obterAbaConfig_();
+  obterAbaFiliais_();
 }
 
 function obterAbaVales_() {
@@ -1098,8 +1158,9 @@ function obterAbaVales_() {
       "Baixado em",
       "Conferente expedidor",
       "Conferente recebedor",
+      "Filial",
     ]);
-    sheet.getRange(1, 1, 1, 14).setFontWeight("bold");
+    sheet.getRange(1, 1, 1, 15).setFontWeight("bold");
     sheet.setFrozenRows(1);
   } else {
     // Migração suave: preserva vales antigos e acrescenta somente as novas colunas.
@@ -1122,7 +1183,10 @@ function obterAbaVales_() {
     if (!sheet.getRange(1, 14).getValue()) {
       sheet.getRange(1, 14).setValue("Conferente recebedor");
     }
-    sheet.getRange(1, 9, 1, 6).setFontWeight("bold");
+    if (!sheet.getRange(1, 15).getValue()) {
+      sheet.getRange(1, 15).setValue("Filial");
+    }
+    sheet.getRange(1, 9, 1, 7).setFontWeight("bold");
   }
 
   return sheet;
@@ -1185,6 +1249,212 @@ function obterAbaConfig_() {
   }
 
   return sheet;
+}
+
+/* ===================== FILIAIS / LOGIN ===================== */
+
+function obterAbaFiliais_() {
+  var ss = obterPlanilha_();
+  var sheet = ss.getSheetByName(ABA_FILIAIS);
+
+  if (!sheet) {
+    sheet = ss.insertSheet(ABA_FILIAIS);
+    sheet.appendRow(["Filial", "Senha", "Cadastrado em"]);
+    sheet.getRange(1, 1, 1, 3).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+  } else {
+    if (!sheet.getRange(1, 1).getValue()) sheet.getRange(1, 1).setValue("Filial");
+    if (!sheet.getRange(1, 2).getValue()) sheet.getRange(1, 2).setValue("Senha");
+    if (!sheet.getRange(1, 3).getValue()) sheet.getRange(1, 3).setValue("Cadastrado em");
+    sheet.getRange(1, 1, 1, 3).setFontWeight("bold");
+  }
+
+  garantirFiliaisPadrao_(sheet);
+  return sheet;
+}
+
+function garantirFiliaisPadrao_(sheet) {
+  sheet = sheet || obterAbaFiliais_();
+  var ultima = sheet.getLastRow();
+  var existentes = {};
+
+  if (ultima >= 2) {
+    var nomes = sheet.getRange(2, 1, ultima, 1).getValues();
+    for (var i = 0; i < nomes.length; i++) {
+      var n = normalizarFilial_(nomes[i][0]);
+      if (n) existentes[n] = true;
+    }
+  }
+
+  for (var j = 0; j < FILIAIS_PADRAO.length; j++) {
+    var filial = FILIAIS_PADRAO[j];
+    if (!existentes[filial]) {
+      sheet.appendRow([filial, "", ""]);
+    }
+  }
+}
+
+function normalizarFilial_(valor) {
+  return String(valor || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ");
+}
+
+function listarFiliais_() {
+  var sheet = obterAbaFiliais_();
+  var ultima = sheet.getLastRow();
+  var mapa = {};
+  var lista = [];
+
+  if (ultima >= 2) {
+    var rows = sheet.getRange(2, 1, ultima, 2).getValues();
+    for (var i = 0; i < rows.length; i++) {
+      var nome = normalizarFilial_(rows[i][0]);
+      if (!nome) continue;
+      mapa[nome] = {
+        nome: nome,
+        temSenha: String(rows[i][1] || "").trim() !== "",
+      };
+    }
+  }
+
+  for (var j = 0; j < FILIAIS_PADRAO.length; j++) {
+    var padrao = FILIAIS_PADRAO[j];
+    lista.push(mapa[padrao] || { nome: padrao, temSenha: false });
+    delete mapa[padrao];
+  }
+
+  for (var extra in mapa) {
+    if (Object.prototype.hasOwnProperty.call(mapa, extra)) {
+      lista.push(mapa[extra]);
+    }
+  }
+
+  return json_({ ok: true, filiais: lista });
+}
+
+function encontrarLinhaFilial_(filial) {
+  var nome = normalizarFilial_(filial);
+  if (!nome) return null;
+
+  var sheet = obterAbaFiliais_();
+  var ultima = sheet.getLastRow();
+  if (ultima < 2) return null;
+
+  var rows = sheet.getRange(2, 1, ultima, 3).getValues();
+  for (var i = 0; i < rows.length; i++) {
+    if (normalizarFilial_(rows[i][0]) === nome) {
+      return {
+        linha: i + 2,
+        nome: nome,
+        senha: String(rows[i][1] || ""),
+        sheet: sheet,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Login da filial.
+ * - Sem senha cadastrada: primeiro acesso → cadastra a senha (precisa confirmar).
+ * - Com senha: valida e libera.
+ */
+function loginFilial_(dados) {
+  var filial = normalizarFilial_(dados.filial);
+  var senha = String(dados.senha || "");
+  var confirmacao = String(
+    dados.confirmarSenha != null
+      ? dados.confirmarSenha
+      : dados.confirmacao != null
+        ? dados.confirmacao
+        : dados.confirmar_senha || ""
+  );
+
+  if (!filial) {
+    return json_({ ok: false, erro: "Selecione a filial." });
+  }
+  if (!senha || senha.length < 4) {
+    return json_({
+      ok: false,
+      erro: "A senha deve ter pelo menos 4 caracteres.",
+    });
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    var info = encontrarLinhaFilial_(filial);
+    if (!info) {
+      return json_({ ok: false, erro: "Filial não cadastrada." });
+    }
+
+    var senhaSalva = String(info.senha || "").trim();
+
+    if (!senhaSalva) {
+      if (confirmacao !== senha) {
+        return json_({
+          ok: false,
+          erro: "Confirmação de senha não confere.",
+          primeiroAcesso: true,
+        });
+      }
+
+      var agora = Utilities.formatDate(
+        new Date(),
+        "America/Sao_Paulo",
+        "dd/MM/yyyy HH:mm:ss"
+      );
+      info.sheet.getRange(info.linha, 2).setValue(senha);
+      info.sheet.getRange(info.linha, 3).setValue(agora);
+
+      return json_({
+        ok: true,
+        filial: info.nome,
+        primeiroAcesso: true,
+        mensagem: "Senha cadastrada para " + info.nome + ". Login liberado.",
+      });
+    }
+
+    if (senha !== senhaSalva) {
+      return json_({ ok: false, erro: "Senha incorreta." });
+    }
+
+    return json_({
+      ok: true,
+      filial: info.nome,
+      primeiroAcesso: false,
+      mensagem: "Login ok: " + info.nome,
+    });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Confere filial + senha já cadastrada (usado ao emitir). */
+function exigirFilialLogada_(filial, senhaFilial) {
+  var nome = normalizarFilial_(filial);
+  if (!nome) {
+    return { erro: "Faça login na filial antes de emitir." };
+  }
+
+  var info = encontrarLinhaFilial_(nome);
+  if (!info) {
+    return { erro: "Filial não cadastrada." };
+  }
+
+  var senhaSalva = String(info.senha || "").trim();
+  if (!senhaSalva) {
+    return { erro: "Filial ainda sem senha. Faça o primeiro acesso." };
+  }
+
+  if (String(senhaFilial || "") !== senhaSalva) {
+    return { erro: "Sessão da filial inválida. Entre novamente." };
+  }
+
+  return { nome: info.nome };
 }
 
 function pegarProximoNumero_(sheet) {

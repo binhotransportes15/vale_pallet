@@ -624,6 +624,129 @@
 
     .preco-edit input { flex: 1; }
 
+    /* —— Login por filial —— */
+    .login-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+      background:
+        radial-gradient(ellipse at 20% 10%, rgba(201, 162, 39, 0.18), transparent 45%),
+        radial-gradient(ellipse at 80% 90%, rgba(26, 92, 26, 0.25), transparent 40%),
+        #161616;
+    }
+
+    .login-gate[hidden] { display: none !important; }
+
+    .login-card {
+      width: min(420px, 100%);
+      background: #1f1f1f;
+      color: #f2f2f2;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 1.5rem 1.35rem 1.35rem;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    }
+
+    .login-card h2 {
+      font-size: 1.15rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .login-card .subtitle {
+      color: #aaa;
+      font-size: 0.85rem;
+      margin-bottom: 1.1rem;
+    }
+
+    .login-card .field { margin-bottom: 0.85rem; }
+
+    .login-card label {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #bbb;
+      margin-bottom: 0.35rem;
+    }
+
+    .login-card select,
+    .login-card input {
+      width: 100%;
+      padding: 0.65rem 0.7rem;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: #111;
+      color: #fff;
+      font: inherit;
+    }
+
+    .login-card .hint {
+      margin-top: 0.35rem;
+      font-size: 0.78rem;
+      color: #999;
+    }
+
+    .login-card .actions {
+      margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .login-card .btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .session-chip {
+      display: none;
+      align-items: center;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+      font-size: 0.78rem;
+      color: #ddd;
+    }
+
+    .session-chip.visible { display: flex; }
+
+    .session-chip strong {
+      color: var(--accent);
+      font-size: 0.85rem;
+    }
+
+    .session-chip button {
+      background: transparent;
+      border: 1px solid #555;
+      color: #ddd;
+      border-radius: 4px;
+      padding: 0.3rem 0.55rem;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .session-chip button:hover {
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    body.locked-login .topbar,
+    body.locked-login .view {
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    @media print {
+      .login-gate,
+      .session-chip { display: none !important; }
+    }
+
     @media print {
       body { background: #fff; }
       .topbar,
@@ -653,11 +776,45 @@
     }
   </style>
 </head>
-<body>
+<body class="locked-login">
+  <div id="login-gate" class="login-gate" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <form id="form-login" class="login-card" autocomplete="off">
+      <h2 id="login-title">Login por filial</h2>
+      <p class="subtitle">A filial é o usuário. No primeiro acesso você cria a senha; depois ela fica salva na planilha.</p>
+
+      <div class="field">
+        <label for="login-filial">Filial (usuário)</label>
+        <select id="login-filial" required>
+          <option value="">Carregando filiais…</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="login-senha" id="login-senha-label">Senha</label>
+        <input id="login-senha" type="password" required minlength="4" placeholder="Mínimo 4 caracteres" />
+        <p class="hint" id="login-hint">Selecione a filial para continuar.</p>
+      </div>
+
+      <div class="field" id="login-confirm-wrap" hidden>
+        <label for="login-confirm">Confirmar senha (primeiro acesso)</label>
+        <input id="login-confirm" type="password" minlength="4" placeholder="Repita a senha" />
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="btn btn-save" id="btn-login">Entrar</button>
+      </div>
+      <div id="status-login" class="status" role="status"></div>
+    </form>
+  </div>
+
   <header class="topbar">
     <div class="topbar-brand">
       <img id="topbar-logo" class="topbar-logo" alt="Logo da empresa" />
       <h1 id="app-title">BINHO Transportes</h1>
+    </div>
+    <div class="session-chip" id="session-chip">
+      <span>Filial: <strong id="session-filial-nome">—</strong></span>
+      <button type="button" id="btn-sair-filial">Sair</button>
     </div>
     <nav class="tabs" role="tablist">
       <button type="button" class="active" data-tab="emitir">Emitir</button>
@@ -675,7 +832,7 @@
     <div class="app">
       <aside class="panel">
         <h2>Emitir vale</h2>
-        <p class="subtitle">Quantidade calcula o valor. Assinatura só na impressão.</p>
+        <p class="subtitle">Será gravado na filial logada. Quantidade calcula o valor. Assinatura só na impressão.</p>
 
         <div class="numero-badge">
           <span>Próximo vale Nº</span>
@@ -852,7 +1009,7 @@
     <div class="app" style="grid-template-columns: 1fr;">
       <section class="consulta-wrap panel" style="position: static; max-width: 100%;">
         <h2>Consultar vales</h2>
-        <p class="subtitle">Busca o que foi salvo na planilha Google Sheets.</p>
+        <p class="subtitle">Mostra os vales da <strong>filial logada</strong>, salvos na planilha Google Sheets.</p>
 
         <div class="toolbar">
           <input id="filtro-vales" type="search" placeholder="Buscar por nº, cliente, motorista, placa, conferente…" />
@@ -865,6 +1022,7 @@
             <thead>
               <tr>
                 <th>Nº</th>
+                <th>Filial</th>
                 <th>Qtd</th>
                 <th>Valor</th>
                 <th>Cliente</th>
@@ -879,7 +1037,7 @@
               </tr>
             </thead>
             <tbody id="tabela-vales">
-              <tr><td colspan="12" class="empty">Carregando…</td></tr>
+              <tr><td colspan="13" class="empty">Carregando…</td></tr>
             </tbody>
           </table>
         </div>
@@ -1185,6 +1343,7 @@
     const SCRIPT_URL = (window.VALE_CONFIG && window.VALE_CONFIG.scriptUrl) || "";
     const PRECO_FALLBACK = (window.VALE_CONFIG && window.VALE_CONFIG.precoUnitarioFallback) || 10;
     const SENHA_EXCLUSAO = (window.VALE_CONFIG && window.VALE_CONFIG.senhaExclusao) || "1982";
+    const SESSION_KEY = "vale_pallet_sessao_filial";
 
     let proximoNumero = null;
     let precoUnitario = PRECO_FALLBACK;
@@ -1196,6 +1355,8 @@
     let clientesCache = [];
     let motoristasCache = [];
     let conferentesCache = [];
+    let filiaisCache = [];
+    let sessaoFilial = null; // { filial, senha }
     let suggestIndex = -1;
     let suggestMotoristaIndex = -1;
     let suggestExpedidorIndex = -1;
@@ -1210,6 +1371,19 @@
       statusBaixa: document.getElementById("status-baixa"),
       statusPreco: document.getElementById("status-preco"),
       statusMarca: document.getElementById("status-marca"),
+      statusLogin: document.getElementById("status-login"),
+      loginGate: document.getElementById("login-gate"),
+      formLogin: document.getElementById("form-login"),
+      loginFilial: document.getElementById("login-filial"),
+      loginSenha: document.getElementById("login-senha"),
+      loginConfirm: document.getElementById("login-confirm"),
+      loginConfirmWrap: document.getElementById("login-confirm-wrap"),
+      loginHint: document.getElementById("login-hint"),
+      loginSenhaLabel: document.getElementById("login-senha-label"),
+      btnLogin: document.getElementById("btn-login"),
+      sessionChip: document.getElementById("session-chip"),
+      sessionFilialNome: document.getElementById("session-filial-nome"),
+      btnSairFilial: document.getElementById("btn-sair-filial"),
       badgeNumero: document.getElementById("badge-numero"),
       badgePreco: document.getElementById("badge-preco"),
       precoAtualDisplay: document.getElementById("preco-atual-display"),
@@ -1255,6 +1429,114 @@
 
     function configOk() {
       return SCRIPT_URL && !String(SCRIPT_URL).includes("COLE_AQUI");
+    }
+
+    function lerSessaoSalva() {
+      try {
+        const raw = sessionStorage.getItem(SESSION_KEY);
+        if (!raw) return null;
+        const dados = JSON.parse(raw);
+        if (!dados || !dados.filial || !dados.senha) return null;
+        return { filial: String(dados.filial).toUpperCase(), senha: String(dados.senha) };
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function salvarSessao(filial, senha) {
+      sessaoFilial = { filial: String(filial).toUpperCase(), senha: String(senha) };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessaoFilial));
+    }
+
+    function limparSessao() {
+      sessaoFilial = null;
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+
+    function exigirSessao() {
+      if (!sessaoFilial || !sessaoFilial.filial || !sessaoFilial.senha) {
+        throw new Error("Faça login na filial para continuar.");
+      }
+      return sessaoFilial;
+    }
+
+    function payloadSessao(extra) {
+      const s = exigirSessao();
+      return Object.assign(
+        {
+          filial: s.filial,
+          senhaFilial: s.senha,
+        },
+        extra || {}
+      );
+    }
+
+    function atualizarUiSessao() {
+      if (sessaoFilial && sessaoFilial.filial) {
+        document.body.classList.remove("locked-login");
+        els.loginGate.hidden = true;
+        els.sessionChip.classList.add("visible");
+        els.sessionFilialNome.textContent = sessaoFilial.filial;
+      } else {
+        document.body.classList.add("locked-login");
+        els.loginGate.hidden = false;
+        els.sessionChip.classList.remove("visible");
+        els.sessionFilialNome.textContent = "—";
+      }
+    }
+
+    function filialSelecionadaInfo() {
+      const nome = String(els.loginFilial.value || "").toUpperCase();
+      return filiaisCache.find((f) => f.nome === nome) || null;
+    }
+
+    function atualizarFormLoginPorFilial() {
+      const info = filialSelecionadaInfo();
+      const primeiro = !info || !info.temSenha;
+      els.loginConfirmWrap.hidden = !primeiro;
+      els.loginConfirm.required = primeiro;
+      if (!primeiro) els.loginConfirm.value = "";
+      els.loginSenhaLabel.textContent = primeiro ? "Criar senha" : "Senha";
+      els.btnLogin.textContent = primeiro ? "Cadastrar senha e entrar" : "Entrar";
+      els.loginHint.textContent = primeiro
+        ? "Primeiro acesso desta filial: defina uma senha (fica salva na planilha)."
+        : "Digite a senha já cadastrada desta filial.";
+    }
+
+    async function carregarFiliaisLogin() {
+      const dados = await chamarPlanilha({ action: "listar_filiais" });
+      filiaisCache = (dados.filiais || []).map((f) => ({
+        nome: String(f.nome || "").toUpperCase(),
+        temSenha: !!f.temSenha,
+      }));
+      els.loginFilial.innerHTML =
+        `<option value="">Selecione a filial…</option>` +
+        filiaisCache
+          .map(
+            (f) =>
+              `<option value="${escapeHtml(f.nome)}">${escapeHtml(f.nome)}${
+                f.temSenha ? "" : " (primeiro acesso)"
+              }</option>`
+          )
+          .join("");
+      atualizarFormLoginPorFilial();
+    }
+
+    async function iniciarAppAposLogin() {
+      atualizarUiSessao();
+      const cfg = await chamarPlanilha({ action: "ping" });
+      proximoNumero = Number(cfg.proximo);
+      precoUnitario = Number(cfg.precoUnitario) || PRECO_FALLBACK;
+      if (cfg.marca) aplicarMarca(cfg.marca);
+      atualizarPreview();
+      await carregarClientesCache();
+      await carregarMotoristasCache();
+      await carregarConferentesCache();
+      mostrarStatus(
+        els.status,
+        `Filial ${sessaoFilial.filial} · ${cfg.planilha} · Próximo Nº ${proximoNumero} · ${formatarMoeda(precoUnitario)}/pallet`,
+        "ok"
+      );
     }
 
     function mostrarStatus(el, msg, tipo) {
@@ -1796,6 +2078,10 @@
     /* —— Emitir —— */
     document.getElementById("form-vale").addEventListener("submit", async (e) => {
       e.preventDefault();
+      if (!sessaoFilial) {
+        mostrarStatus(els.status, "Faça login na filial antes de emitir.", "err");
+        return;
+      }
       if (!els.nome.value.trim()) {
         mostrarStatus(els.status, "Informe o nome do cliente.", "err");
         return;
@@ -1844,10 +2130,12 @@
           ano: els.ano.value.trim(),
         };
 
-        const resultado = await chamarPlanilha({
-          action: "emitir",
-          ...snapshot,
-        });
+        const resultado = await chamarPlanilha(
+          payloadSessao({
+            action: "emitir",
+            ...snapshot,
+          })
+        );
 
         const numeroEmitido = Number(resultado.numero);
         proximoNumero = numeroEmitido; // mostra o nº emitido na impressão
@@ -1929,29 +2217,36 @@
     /* —— Consulta —— */
     async function carregarVales() {
       if (!configOk()) {
-        els.tabelaVales.innerHTML = `<tr><td colspan="12" class="empty">Configure config.js</td></tr>`;
+        els.tabelaVales.innerHTML = `<tr><td colspan="13" class="empty">Configure config.js</td></tr>`;
         return;
       }
-      els.tabelaVales.innerHTML = `<tr><td colspan="12" class="empty">Carregando…</td></tr>`;
+      if (!sessaoFilial) {
+        els.tabelaVales.innerHTML = `<tr><td colspan="13" class="empty">Faça login na filial.</td></tr>`;
+        return;
+      }
+      els.tabelaVales.innerHTML = `<tr><td colspan="13" class="empty">Carregando…</td></tr>`;
       try {
-        const dados = await chamarPlanilha({
-          action: "listar_vales",
-          filtro: els.filtroVales.value.trim(),
-          limite: 150,
-        });
+        const dados = await chamarPlanilha(
+          payloadSessao({
+            action: "listar_vales",
+            filtro: els.filtroVales.value.trim(),
+            limite: 150,
+          })
+        );
         const vales = (dados.vales || []).filter((v) => {
           const n = Number(v.numero);
           return v.numero !== "" && v.numero != null && !isNaN(n) && n > 0;
         });
 
         if (!vales.length) {
-          els.tabelaVales.innerHTML = `<tr><td colspan="12" class="empty">Nenhum vale encontrado.</td></tr>`;
+          els.tabelaVales.innerHTML = `<tr><td colspan="13" class="empty">Nenhum vale desta filial.</td></tr>`;
           return;
         }
         els.tabelaVales.innerHTML = vales
           .map(
             (v) => `<tr>
               <td><strong>${escapeHtml(v.numero)}</strong></td>
+              <td>${escapeHtml(v.filial || sessaoFilial.filial)}</td>
               <td>${escapeHtml(v.quantidade)}</td>
               <td>${escapeHtml(v.valor)}</td>
               <td>${escapeHtml(v.nome)}</td>
@@ -1980,7 +2275,7 @@
           btn.addEventListener("click", () => apagarVale(btn.dataset.apagar));
         });
       } catch (err) {
-        els.tabelaVales.innerHTML = `<tr><td colspan="12" class="empty">${escapeHtml(err.message)}</td></tr>`;
+        els.tabelaVales.innerHTML = `<tr><td colspan="13" class="empty">${escapeHtml(err.message)}</td></tr>`;
       }
     }
 
@@ -2005,11 +2300,13 @@
       }
 
       try {
-        const dados = await chamarPlanilha({
-          action: "apagar_vale",
-          numero: String(numero),
-          senha: String(senha),
-        });
+        const dados = await chamarPlanilha(
+          payloadSessao({
+            action: "apagar_vale",
+            numero: String(numero),
+            senha: String(senha),
+          })
+        );
         mostrarStatus(els.statusConsulta, dados.mensagem || `Vale Nº ${numero} apagado.`, "ok");
         await carregarVales();
       } catch (err) {
@@ -2024,7 +2321,9 @@
 
     async function reimprimirVale(numero) {
       try {
-        const dados = await chamarPlanilha({ action: "buscar_vale", numero });
+        const dados = await chamarPlanilha(
+          payloadSessao({ action: "buscar_vale", numero })
+        );
         const v = dados.vale;
         proximoNumero = v.numero; // mostra o nº do vale na prévia
         els.quantidade.value = v.quantidade;
@@ -2088,11 +2387,13 @@
       const btn = document.getElementById("btn-baixar-vale");
       btn.disabled = true;
       try {
-        const dados = await chamarPlanilha({
-          action: "baixar_vale",
-          numero,
-          documentoAssinado: "sim",
-        });
+        const dados = await chamarPlanilha(
+          payloadSessao({
+            action: "baixar_vale",
+            numero,
+            documentoAssinado: "sim",
+          })
+        );
         mostrarStatus(els.statusBaixa, dados.mensagem, "ok");
         els.baixaResultado.textContent =
           `Vale Nº ${dados.numero} — FECHADO em ${dados.baixadoEm}`;
@@ -2451,37 +2752,120 @@
         : "Nenhuma imagem selecionada.";
     });
 
+    /* —— Login por filial —— */
+    els.loginFilial.addEventListener("change", atualizarFormLoginPorFilial);
+
+    els.formLogin.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const filial = String(els.loginFilial.value || "").trim().toUpperCase();
+      const senha = String(els.loginSenha.value || "");
+      const confirmacao = String(els.loginConfirm.value || "");
+      const info = filialSelecionadaInfo();
+      const primeiro = !info || !info.temSenha;
+
+      if (!filial) {
+        mostrarStatus(els.statusLogin, "Selecione a filial.", "err");
+        return;
+      }
+      if (senha.length < 4) {
+        mostrarStatus(els.statusLogin, "A senha deve ter pelo menos 4 caracteres.", "err");
+        return;
+      }
+      if (primeiro && senha !== confirmacao) {
+        mostrarStatus(els.statusLogin, "Confirmação de senha não confere.", "err");
+        return;
+      }
+
+      els.btnLogin.disabled = true;
+      mostrarStatus(els.statusLogin, "Validando…", "ok");
+      try {
+        const payload = {
+          action: "login",
+          filial,
+          senha,
+        };
+        if (primeiro) payload.confirmarSenha = confirmacao;
+
+        const dados = await chamarPlanilha(payload);
+        salvarSessao(dados.filial || filial, senha);
+        els.loginSenha.value = "";
+        els.loginConfirm.value = "";
+        mostrarStatus(
+          els.statusLogin,
+          dados.mensagem || (dados.primeiroAcesso ? "Senha cadastrada." : "Login ok."),
+          "ok"
+        );
+        await iniciarAppAposLogin();
+      } catch (err) {
+        let msg = err.message;
+        if (/a[cç][aã]o inv[aá]lida/i.test(msg) || /login|listar_filiais/i.test(msg)) {
+          msg =
+            "Atualize o Code.gs no Apps Script e publique uma Nova versão da implantação.";
+        }
+        mostrarStatus(els.statusLogin, msg, "err");
+      } finally {
+        els.btnLogin.disabled = false;
+      }
+    });
+
+    els.btnSairFilial.addEventListener("click", () => {
+      limparSessao();
+      atualizarUiSessao();
+      els.loginSenha.value = "";
+      els.loginConfirm.value = "";
+      mostrarStatus(els.statusLogin, "Sessão encerrada. Entre novamente.", "ok");
+      carregarFiliaisLogin().catch((err) => {
+        mostrarStatus(els.statusLogin, err.message, "err");
+      });
+    });
+
     /* —— Start —— */
     aplicarMarca(marcaConfig);
     preencherDataHoje();
     atualizarPreview();
+    atualizarUiSessao();
 
     (async function init() {
       if (!configOk()) {
+        mostrarStatus(els.statusLogin, "Configure a URL do Apps Script em config.js.", "err");
         mostrarStatus(els.status, "Configure a URL do Apps Script em config.js.", "err");
         return;
       }
+
       try {
-        const cfg = await chamarPlanilha({ action: "ping" });
-        proximoNumero = Number(cfg.proximo);
-        precoUnitario = Number(cfg.precoUnitario) || PRECO_FALLBACK;
-        if (cfg.marca) aplicarMarca(cfg.marca);
-        atualizarPreview();
-        await carregarClientesCache();
-        await carregarMotoristasCache();
-        await carregarConferentesCache();
-        mostrarStatus(
-          els.status,
-          `Conectado: ${cfg.planilha} · Próximo Nº ${proximoNumero} · ${formatarMoeda(precoUnitario)}/pallet`,
-          "ok"
-        );
+        await carregarFiliaisLogin();
       } catch (err) {
-        mostrarStatus(
-          els.status,
-          `${err.message} — No Code.gs cole o SPREADSHEET_ID e publique Nova versão.`,
-          "err"
-        );
+        let msg = err.message;
+        if (/a[cç][aã]o inv[aá]lida/i.test(msg) || /listar_filiais/i.test(msg)) {
+          msg =
+            "Cole o Code.gs novo no Apps Script e publique Nova versão (ação listar_filiais).";
+        }
+        mostrarStatus(els.statusLogin, msg, "err");
+        return;
       }
+
+      const salva = lerSessaoSalva();
+      if (salva) {
+        try {
+          const dados = await chamarPlanilha({
+            action: "login",
+            filial: salva.filial,
+            senha: salva.senha,
+          });
+          salvarSessao(dados.filial || salva.filial, salva.senha);
+          await iniciarAppAposLogin();
+          return;
+        } catch (_) {
+          limparSessao();
+          atualizarUiSessao();
+        }
+      }
+
+      mostrarStatus(
+        els.statusLogin,
+        "Escolha a filial. No primeiro uso, cadastre a senha.",
+        "ok"
+      );
     })();
   </script>
 </body>
