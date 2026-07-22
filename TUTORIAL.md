@@ -32,7 +32,13 @@ Se a filial ainda **não tem senha**:
 3. Confirme a senha.
 4. Clique em **Cadastrar senha e entrar**.
 
-A senha fica salva na planilha (aba **Filiais**). Nos próximos acessos, use só filial + senha.
+Essa senha fica **definitiva para aquela filial** (salva na planilha, aba **Filiais**).
+
+- O site **não permite trocar** a senha depois.
+- Só quem tem **acesso à planilha Google** consegue alterar (editando ou apagando a senha na aba **Filiais**).
+- Cada filial tem a **sua própria** senha (definida no primeiro uso dela).
+
+Nos próximos acessos: só escolher a filial e digitar a senha já cadastrada.
 
 ### Sessão de 30 minutos
 
@@ -137,7 +143,7 @@ Vales já emitidos **não mudam** quando o preço ou a marca são alterados depo
 | Ver vales da minha unidade | Aba Consultar |
 | Fechar vale devolvido | Aba Baixa de vale |
 | Tela pediu login de novo | Sessão de 30 min acabou ou a página foi atualizada |
-| Esqueci a senha da filial | Peça ao responsável para limpar a senha na aba **Filiais** da planilha (aí a filial cadastra de novo no próximo acesso) |
+| Esqueci a senha da filial | Responsável com acesso à planilha altera/apaga na aba **Filiais** (pelo site não muda) |
 
 ---
 
@@ -167,7 +173,10 @@ O Apps Script pode estar desatualizado. O responsável deve colar o `Code.gs` no
 É normal: cada login só enxerga a própria filial.
 
 **Esqueci a senha da filial**  
-Na planilha, aba **Filiais**, apague a senha daquela linha. No próximo login, a tela pedirá para cadastrar senha de novo (primeiro acesso).
+Somente quem tem acesso à planilha: abra a aba **Filiais**, apague (ou troque) a senha daquela linha.  
+- Se **apagar** a senha → no próximo login a filial faz “primeiro acesso” e define uma senha nova (de novo definitiva).  
+- Se **trocar** na planilha → use a nova senha no site.  
+Pelo site **não dá** para alterar.
 
 **Site antigo no navegador**  
 Atualize com **Ctrl + F5**.

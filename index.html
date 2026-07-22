@@ -780,7 +780,7 @@
   <div id="login-gate" class="login-gate" role="dialog" aria-modal="true" aria-labelledby="login-title">
     <form id="form-login" class="login-card" autocomplete="off">
       <h2 id="login-title">Login por filial</h2>
-      <p class="subtitle">Informe a <strong>filial</strong> e a <strong>senha</strong>. Sessão válida por 30 minutos; depois a tela bloqueia e pede os dois de novo.</p>
+      <p class="subtitle">No <strong>primeiro acesso</strong> de cada filial a senha fica <strong>definitiva</strong>. Depois, só quem tem acesso à planilha Google (aba Filiais) consegue alterar. Sessão: 30 minutos.</p>
 
       <div class="field">
         <label for="login-filial">Filial (usuário)</label>
@@ -1593,8 +1593,8 @@
       els.loginSenhaLabel.textContent = primeiro ? "Criar senha" : "Senha";
       els.btnLogin.textContent = primeiro ? "Cadastrar senha e entrar" : "Entrar";
       els.loginHint.textContent = primeiro
-        ? "Primeiro acesso desta filial: defina uma senha (fica salva na planilha)."
-        : "Digite a senha já cadastrada desta filial.";
+        ? "Primeiro acesso desta filial: defina a senha AGORA. Ela fica permanente e só muda na planilha."
+        : "Senha já definida nesta filial. Digite-a para entrar (não é possível trocar pelo site).";
     }
 
     async function carregarFiliaisLogin() {

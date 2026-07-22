@@ -1358,8 +1358,9 @@ function encontrarLinhaFilial_(filial) {
 
 /**
  * Login da filial.
- * - Sem senha cadastrada: primeiro acesso → cadastra a senha (precisa confirmar).
- * - Com senha: valida e libera.
+ * - Sem senha: PRIMEIRO ACESSO → cadastra a senha UMA VEZ (definitiva por filial).
+ * - Com senha: só valida. NÃO altera pelo site.
+ * - Troca de senha: somente editando a aba Filiais na planilha Google.
  */
 function loginFilial_(dados) {
   var filial = normalizarFilial_(dados.filial);
@@ -1371,6 +1372,21 @@ function loginFilial_(dados) {
         ? dados.confirmacao
         : dados.confirmar_senha || ""
   );
+
+  // Bloqueia qualquer tentativa de troca de senha via API do site
+  if (
+    dados.novaSenha ||
+    dados.nova_senha ||
+    dados.alterarSenha ||
+    dados.alterar_senha ||
+    String(dados.actionTroca || "").trim() !== ""
+  ) {
+    return json_({
+      ok: false,
+      erro:
+        "A senha da filial é definitiva. Somente quem tem acesso à planilha (aba Filiais) pode alterar.",
+    });
+  }
 
   if (!filial) {
     return json_({ ok: false, erro: "Selecione a filial." });
@@ -1393,40 +1409,46 @@ function loginFilial_(dados) {
 
     var senhaSalva = String(info.senha || "").trim();
 
-    if (!senhaSalva) {
-      if (confirmacao !== senha) {
-        return json_({
-          ok: false,
-          erro: "Confirmação de senha não confere.",
-          primeiroAcesso: true,
-        });
+    // Já tem senha: NUNCA sobrescreve — só autentica
+    if (senhaSalva) {
+      if (senha !== senhaSalva) {
+        return json_({ ok: false, erro: "Senha incorreta." });
       }
-
-      var agora = Utilities.formatDate(
-        new Date(),
-        "America/Sao_Paulo",
-        "dd/MM/yyyy HH:mm:ss"
-      );
-      info.sheet.getRange(info.linha, 2).setValue(senha);
-      info.sheet.getRange(info.linha, 3).setValue(agora);
-
       return json_({
         ok: true,
         filial: info.nome,
-        primeiroAcesso: true,
-        mensagem: "Senha cadastrada para " + info.nome + ". Login liberado.",
+        primeiroAcesso: false,
+        senhaDefinitiva: true,
+        mensagem: "Login ok: " + info.nome,
       });
     }
 
-    if (senha !== senhaSalva) {
-      return json_({ ok: false, erro: "Senha incorreta." });
+    // Primeiro acesso desta filial: define a senha para sempre
+    if (confirmacao !== senha) {
+      return json_({
+        ok: false,
+        erro: "Confirmação de senha não confere.",
+        primeiroAcesso: true,
+      });
     }
+
+    var agora = Utilities.formatDate(
+      new Date(),
+      "America/Sao_Paulo",
+      "dd/MM/yyyy HH:mm:ss"
+    );
+    info.sheet.getRange(info.linha, 2).setValue(senha);
+    info.sheet.getRange(info.linha, 3).setValue(agora);
 
     return json_({
       ok: true,
       filial: info.nome,
-      primeiroAcesso: false,
-      mensagem: "Login ok: " + info.nome,
+      primeiroAcesso: true,
+      senhaDefinitiva: true,
+      mensagem:
+        "Senha definitiva cadastrada para " +
+        info.nome +
+        ". Ela não muda pelo site — só na planilha (aba Filiais).",
     });
   } finally {
     lock.releaseLock();
