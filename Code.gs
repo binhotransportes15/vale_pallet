@@ -101,7 +101,8 @@ function rotear_(dados) {
         mensagem: "Planilha conectada com sucesso.",
         planilha: ss.getName(),
         id: ss.getId(),
-        precoUnitario: pegarPrecoUnitario_(),
+        precoUnitario: pegarPrecoUnitario_(dados.filial),
+        filial: normalizarFilial_(dados.filial || ""),
         proximo: pegarProximoNumero_(),
         marca: pegarMarca_(),
       });
@@ -111,14 +112,16 @@ function rotear_(dados) {
       return json_({
         ok: true,
         numero: pegarProximoNumero_(),
-        precoUnitario: pegarPrecoUnitario_(),
+        precoUnitario: pegarPrecoUnitario_(dados.filial),
+        filial: normalizarFilial_(dados.filial || ""),
       });
     }
 
     if (action === "config") {
       return json_({
         ok: true,
-        precoUnitario: pegarPrecoUnitario_(),
+        precoUnitario: pegarPrecoUnitario_(dados.filial),
+        filial: normalizarFilial_(dados.filial || ""),
         proximo: pegarProximoNumero_(),
         marca: pegarMarca_(),
       });
@@ -182,7 +185,7 @@ function rotear_(dados) {
         dados.precoUnitario != null && dados.precoUnitario !== ""
           ? dados.precoUnitario
           : dados.preco_unitario;
-      return definirPreco_(precoNovo);
+      return definirPreco_(precoNovo, dados);
     }
 
     if (action === "definir_marca") {
@@ -227,7 +230,12 @@ function emitir_(dados) {
     var sheet = obterAbaVales_();
     var numero = pegarProximoNumero_(sheet);
     var qtd = Number(String(dados.quantidade || "0").replace(",", "."));
-    var preco = pegarPrecoUnitario_();
+    var filial = exigirFilialLogada_(dados.filial, dados.senhaFilial || dados.senha_filial);
+    if (filial.erro) {
+      return json_({ ok: false, erro: filial.erro });
+    }
+
+    var preco = pegarPrecoUnitario_(filial.nome);
     var valorCalc = !isNaN(qtd) && qtd > 0 ? qtd * preco : 0;
     var valorTexto =
       dados.valor && String(dados.valor).trim()
@@ -263,11 +271,6 @@ function emitir_(dados) {
         ok: false,
         erro: "Conferente recebedor é obrigatório.",
       });
-    }
-
-    var filial = exigirFilialLogada_(dados.filial, dados.senhaFilial || dados.senha_filial);
-    if (filial.erro) {
-      return json_({ ok: false, erro: filial.erro });
     }
 
     var agora = Utilities.formatDate(
@@ -909,7 +912,28 @@ function normalizarTipoConferente_(tipo) {
 
 /* ===================== CONFIG / PREÇO ===================== */
 
-function pegarPrecoUnitario_() {
+function parsePrecoValor_(bruto) {
+  var v = Number(
+    String(bruto == null ? "" : bruto)
+      .replace("R$", "")
+      .replace(/\s/g, "")
+      .replace(",", ".")
+  );
+  if (isNaN(v) || v <= 0) return null;
+  return v;
+}
+
+/** Preço por filial (aba Filiais). Fallback: Config legado ou padrão. */
+function pegarPrecoUnitario_(filial) {
+  var nome = normalizarFilial_(filial);
+  if (nome) {
+    var info = encontrarLinhaFilial_(nome);
+    if (info) {
+      var precoFilial = parsePrecoValor_(info.preco);
+      if (precoFilial != null) return precoFilial;
+    }
+  }
+
   var sheet = obterAbaConfig_();
   var ultima = sheet.getLastRow();
   if (ultima < 2) return PRECO_PADRAO;
@@ -917,46 +941,52 @@ function pegarPrecoUnitario_() {
   var rows = sheet.getRange(2, 1, ultima, 2).getValues();
   for (var i = 0; i < rows.length; i++) {
     if (String(rows[i][0]).trim().toLowerCase() === "preco_unitario") {
-      var bruto = rows[i][1];
-      var v = Number(String(bruto).replace(",", ".").replace("R$", "").trim());
-      if (isNaN(v) || v <= 0) return PRECO_PADRAO;
-      return v;
+      var legado = parsePrecoValor_(rows[i][1]);
+      return legado != null ? legado : PRECO_PADRAO;
     }
   }
   return PRECO_PADRAO;
 }
 
-function definirPreco_(preco) {
+/** Define o preço só da filial logada (coluna Preço pallet na aba Filiais). */
+function definirPreco_(preco, dados) {
+  dados = dados || {};
+  var auth = exigirFilialLogada_(
+    dados.filial,
+    dados.senhaFilial || dados.senha_filial
+  );
+  if (auth.erro) {
+    return json_({ ok: false, erro: auth.erro });
+  }
+
   if (preco === undefined || preco === null || String(preco).trim() === "") {
     return json_({ ok: false, erro: "Informe o valor do pallet." });
   }
 
-  var limpo = String(preco)
-    .replace("R$", "")
-    .replace(/\s/g, "")
-    .replace(",", ".");
-  var v = Number(limpo);
-
-  if (isNaN(v) || v <= 0) {
+  var v = parsePrecoValor_(preco);
+  if (v == null) {
     return json_({
       ok: false,
-      erro: "Preço inválido (\"" + preco + "\"). Use um valor maior que zero, ex: 15 ou 15.50",
+      erro:
+        "Preço inválido (\"" +
+        preco +
+        "\"). Use um valor maior que zero, ex: 15 ou 15.50",
     });
   }
 
-  var sheet = obterAbaConfig_();
-  var ultima = sheet.getLastRow();
-  var rows = ultima >= 2 ? sheet.getRange(2, 1, ultima, 2).getValues() : [];
-
-  for (var i = 0; i < rows.length; i++) {
-    if (String(rows[i][0]).trim().toLowerCase() === "preco_unitario") {
-      sheet.getRange(i + 2, 2).setValue(v);
-      return json_({ ok: true, precoUnitario: v });
-    }
+  var info = encontrarLinhaFilial_(auth.nome);
+  if (!info) {
+    return json_({ ok: false, erro: "Filial não cadastrada." });
   }
 
-  sheet.appendRow(["preco_unitario", v]);
-  return json_({ ok: true, precoUnitario: v });
+  info.sheet.getRange(info.linha, 4).setValue(v);
+  return json_({
+    ok: true,
+    precoUnitario: v,
+    filial: auth.nome,
+    mensagem:
+      "Preço da filial " + auth.nome + " atualizado para R$ " + v.toFixed(2).replace(".", ",") + ".",
+  });
 }
 
 function pegarMarca_() {
@@ -1270,14 +1300,15 @@ function obterAbaFiliais_() {
 
   if (!sheet) {
     sheet = ss.insertSheet(ABA_FILIAIS);
-    sheet.appendRow(["Filial", "Senha", "Cadastrado em"]);
-    sheet.getRange(1, 1, 1, 3).setFontWeight("bold");
+    sheet.appendRow(["Filial", "Senha", "Cadastrado em", "Preço pallet"]);
+    sheet.getRange(1, 1, 1, 4).setFontWeight("bold");
     sheet.setFrozenRows(1);
   } else {
     if (!sheet.getRange(1, 1).getValue()) sheet.getRange(1, 1).setValue("Filial");
     if (!sheet.getRange(1, 2).getValue()) sheet.getRange(1, 2).setValue("Senha");
     if (!sheet.getRange(1, 3).getValue()) sheet.getRange(1, 3).setValue("Cadastrado em");
-    sheet.getRange(1, 1, 1, 3).setFontWeight("bold");
+    if (!sheet.getRange(1, 4).getValue()) sheet.getRange(1, 4).setValue("Preço pallet");
+    sheet.getRange(1, 1, 1, 4).setFontWeight("bold");
   }
 
   garantirFiliaisPadrao_(sheet);
@@ -1300,7 +1331,18 @@ function garantirFiliaisPadrao_(sheet) {
   for (var j = 0; j < FILIAIS_PADRAO.length; j++) {
     var filial = FILIAIS_PADRAO[j];
     if (!existentes[filial]) {
-      sheet.appendRow([filial, "", ""]);
+      sheet.appendRow([filial, "", "", PRECO_PADRAO]);
+    }
+  }
+
+  // Garante preço padrão nas linhas que ainda não têm valor na coluna 4
+  ultima = sheet.getLastRow();
+  if (ultima >= 2) {
+    var precos = sheet.getRange(2, 4, ultima, 4).getValues();
+    for (var k = 0; k < precos.length; k++) {
+      if (parsePrecoValor_(precos[k][0]) == null) {
+        sheet.getRange(k + 2, 4).setValue(PRECO_PADRAO);
+      }
     }
   }
 }
@@ -1353,13 +1395,14 @@ function encontrarLinhaFilial_(filial) {
   var ultima = sheet.getLastRow();
   if (ultima < 2) return null;
 
-  var rows = sheet.getRange(2, 1, ultima, 3).getValues();
+  var rows = sheet.getRange(2, 1, ultima, 4).getValues();
   for (var i = 0; i < rows.length; i++) {
     if (normalizarFilial_(rows[i][0]) === nome) {
       return {
         linha: i + 2,
         nome: nome,
         senha: String(rows[i][1] || ""),
+        preco: rows[i][3],
         sheet: sheet,
       };
     }
@@ -1430,6 +1473,7 @@ function loginFilial_(dados) {
         filial: info.nome,
         primeiroAcesso: false,
         senhaDefinitiva: true,
+        precoUnitario: pegarPrecoUnitario_(info.nome),
         mensagem: "Login ok: " + info.nome,
       });
     }
@@ -1450,12 +1494,16 @@ function loginFilial_(dados) {
     );
     info.sheet.getRange(info.linha, 2).setValue(senha);
     info.sheet.getRange(info.linha, 3).setValue(agora);
+    if (parsePrecoValor_(info.preco) == null) {
+      info.sheet.getRange(info.linha, 4).setValue(PRECO_PADRAO);
+    }
 
     return json_({
       ok: true,
       filial: info.nome,
       primeiroAcesso: true,
       senhaDefinitiva: true,
+      precoUnitario: pegarPrecoUnitario_(info.nome),
       mensagem:
         "Senha definitiva cadastrada para " +
         info.nome +

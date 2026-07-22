@@ -1258,10 +1258,10 @@
     <div class="app" style="grid-template-columns: minmax(300px, 420px) 1fr;">
       <aside class="panel">
         <h2>Valor do pallet</h2>
-        <p class="subtitle">Altere o preço unitário usado em todos os novos vales.</p>
+        <p class="subtitle">Preço desta <strong>filial logada</strong>. Não altera o valor das outras filiais. Só vale para novos lançamentos.</p>
 
         <div class="preco-atual-card">
-          <div class="lbl">Valor atual por pallet</div>
+          <div class="lbl">Valor atual por pallet (sua filial)</div>
           <div class="valor" id="preco-atual-display">—</div>
         </div>
 
@@ -1269,7 +1269,7 @@
           <div class="field">
             <label for="input-preco">Novo valor (R$)</label>
             <input id="input-preco" type="number" min="0" step="0.01" placeholder="Ex: 15,00" required />
-            <p class="hint">Salvo na aba Config da planilha Google Sheets.</p>
+            <p class="hint">Salvo na aba Filiais da planilha (coluna Preço pallet).</p>
           </div>
 
           <div class="actions">
@@ -1617,7 +1617,7 @@
 
     async function iniciarAppAposLogin() {
       atualizarUiSessao();
-      const cfg = await chamarPlanilha({ action: "ping" });
+      const cfg = await chamarPlanilha(payloadSessao({ action: "ping" }));
       proximoNumero = Number(cfg.proximo);
       precoUnitario = Number(cfg.precoUnitario) || PRECO_FALLBACK;
       if (cfg.marca) aplicarMarca(cfg.marca);
@@ -2270,7 +2270,7 @@
             els.conferenteRecebedor.value = "";
             preencherDataHoje();
             try {
-              const cfg = await chamarPlanilha({ action: "proximo" });
+              const cfg = await chamarPlanilha(payloadSessao({ action: "proximo" }));
               proximoNumero = Number(cfg.numero) || numeroEmitido + 1;
               if (cfg.precoUnitario != null) precoUnitario = Number(cfg.precoUnitario);
             } catch (_) {
@@ -2440,8 +2440,9 @@
         // restaura próximo número depois
         setTimeout(async () => {
           try {
-            const cfg = await chamarPlanilha({ action: "proximo" });
+            const cfg = await chamarPlanilha(payloadSessao({ action: "proximo" }));
             proximoNumero = Number(cfg.numero);
+            if (cfg.precoUnitario != null) precoUnitario = Number(cfg.precoUnitario);
             atualizarPreview();
           } catch (_) {}
         }, 800);
@@ -2756,11 +2757,16 @@
 
       btn.disabled = true;
       try {
-        const dados = await chamarPlanilha({
-          action: "definir_preco",
-          precoUnitario: String(valorNum),
-          preco_unitario: String(valorNum),
-        });
+        if (!sessaoFilial) {
+          throw new Error("Faça login na filial para alterar o preço.");
+        }
+        const dados = await chamarPlanilha(
+          payloadSessao({
+            action: "definir_preco",
+            precoUnitario: String(valorNum),
+            preco_unitario: String(valorNum),
+          })
+        );
         const salvo = Number(dados.precoUnitario);
         if (!salvo || salvo <= 0) {
           throw new Error("A planilha retornou preço zerado. Atualize o Code.gs e publique Nova versão.");
@@ -2769,7 +2775,8 @@
         atualizarPreview();
         mostrarStatus(
           els.statusPreco,
-          `Valor do pallet atualizado para ${formatarMoeda(precoUnitario)}. Novos vales usarão este preço.`,
+          dados.mensagem ||
+            `Preço da filial ${sessaoFilial.filial} atualizado para ${formatarMoeda(precoUnitario)}. Só novos vales desta filial usam este valor.`,
           "ok"
         );
       } catch (err) {

@@ -138,10 +138,12 @@ Esses cadastros são compartilhados na planilha e ajudam na digitação na emiss
 
 Aba **Configurações**.
 
-- Alterar o **preço por pallet** (usado no cálculo do valor).
-- Alterar nome / subtítulo / logo da empresa no vale.
+- Alterar o **preço por pallet da filial logada** (cada filial tem o seu).
+- O preço fica na aba **Filiais**, coluna **Preço pallet**.
+- Alterar nome / subtítulo / logo da empresa no vale (identidade compartilhada).
 
 Vales já emitidos **não mudam** quando o preço ou a marca são alterados depois.
+Outras filiais **não** são afetadas quando você muda o preço da sua unidade.
 
 ---
 
@@ -165,11 +167,11 @@ O programa grava e lê nestas abas:
 | Aba | Conteúdo |
 |-----|----------|
 | **Vales** | Todos os vales (com coluna **Filial**) |
-| **Filiais** | Lista de filiais e senhas |
+| **Filiais** | Lista de filiais, senhas e **preço do pallet por filial** |
 | **Clientes** | Cadastro de clientes |
 | **Motoristas** | Cadastro de motoristas/placas |
 | **Conferentes** | Cadastro de conferentes |
-| **Config** | Preço e identidade visual |
+| **Config** | Identidade visual (nome/logo); preço legado só como fallback |
 
 Você pode continuar abrindo e usando a planilha normalmente. O site e a planilha usam os **mesmos dados**.
 
