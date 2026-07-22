@@ -780,7 +780,7 @@
   <div id="login-gate" class="login-gate" role="dialog" aria-modal="true" aria-labelledby="login-title">
     <form id="form-login" class="login-card" autocomplete="off">
       <h2 id="login-title">Login por filial</h2>
-      <p class="subtitle">A filial é o usuário. Sessão válida por <strong>30 minutos</strong>; depois a tela bloqueia e é preciso digitar a senha de novo.</p>
+      <p class="subtitle">Informe a <strong>filial</strong> e a <strong>senha</strong>. Sessão válida por 30 minutos; depois a tela bloqueia e pede os dois de novo.</p>
 
       <div class="field">
         <label for="login-filial">Filial (usuário)</label>
@@ -1455,17 +1455,35 @@
       }
     }
 
+    function resetarTelaLogin() {
+      els.loginFilial.value = "";
+      els.loginSenha.value = "";
+      els.loginConfirm.value = "";
+      els.loginConfirmWrap.hidden = true;
+      els.loginConfirm.required = false;
+      els.loginSenhaLabel.textContent = "Senha";
+      els.btnLogin.textContent = "Entrar";
+      els.loginHint.textContent = "Selecione a filial e digite a senha de acesso.";
+      try {
+        els.loginFilial.focus();
+      } catch (_) {}
+    }
+
     function bloquearPorTimeout(motivo) {
       limparSessao();
       atualizarUiSessao();
-      els.loginSenha.value = "";
-      els.loginConfirm.value = "";
+      resetarTelaLogin();
       mostrarStatus(
         els.statusLogin,
-        motivo || "Sessão expirada (30 min). Digite a senha novamente.",
+        motivo ||
+          "Sessão expirada (30 min). Selecione novamente a filial e digite a senha.",
         "err"
       );
-      carregarFiliaisLogin().catch(() => {});
+      carregarFiliaisLogin()
+        .then(() => {
+          resetarTelaLogin();
+        })
+        .catch(() => {});
     }
 
     function atualizarRelogioSessao() {
@@ -2887,21 +2905,27 @@
     els.btnSairFilial.addEventListener("click", () => {
       limparSessao();
       atualizarUiSessao();
-      els.loginSenha.value = "";
-      els.loginConfirm.value = "";
-      mostrarStatus(els.statusLogin, "Sessão encerrada. Digite a senha para entrar.", "ok");
-      carregarFiliaisLogin().catch((err) => {
-        mostrarStatus(els.statusLogin, err.message, "err");
-      });
+      resetarTelaLogin();
+      mostrarStatus(
+        els.statusLogin,
+        "Sessão encerrada. Selecione a filial e digite a senha novamente.",
+        "ok"
+      );
+      carregarFiliaisLogin()
+        .then(() => resetarTelaLogin())
+        .catch((err) => {
+          mostrarStatus(els.statusLogin, err.message, "err");
+        });
     });
 
     /* —— Start —— */
     aplicarMarca(marcaConfig);
     preencherDataHoje();
     atualizarPreview();
-    // Sempre pede senha ao abrir o site (não restaura sessão antiga).
+    // Sempre pede filial + senha ao abrir o site.
     limparSessao();
     atualizarUiSessao();
+    resetarTelaLogin();
 
     (async function init() {
       if (!configOk()) {
@@ -2912,6 +2936,7 @@
 
       try {
         await carregarFiliaisLogin();
+        resetarTelaLogin();
       } catch (err) {
         let msg = err.message;
         if (/a[cç][aã]o inv[aá]lida/i.test(msg) || /listar_filiais/i.test(msg)) {
@@ -2924,7 +2949,7 @@
 
       mostrarStatus(
         els.statusLogin,
-        "Digite a senha da filial. Após o login, a sessão dura 30 minutos.",
+        "Selecione a filial e digite a senha. A sessão dura 30 minutos.",
         "ok"
       );
     })();
