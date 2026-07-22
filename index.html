@@ -1,0 +1,2488 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gerador Vale Pallet — BINHO Transportes</title>
+  <style>
+    :root {
+      --page: #e8e8e8;
+      --paper: #ffffff;
+      --ink: #111111;
+      --line: #111111;
+      --muted: #666666;
+      --box: #1a5c1a;
+      --panel: #1f1f1f;
+      --panel-text: #f2f2f2;
+      --accent: #c9a227;
+      --ok: #1a7a3c;
+      --err: #b00020;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--page);
+      color: var(--ink);
+      min-height: 100vh;
+      line-height: 1.35;
+    }
+
+    .topbar {
+      background: var(--panel);
+      color: var(--panel-text);
+      padding: 0.85rem 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .topbar h1 { font-size: 1.05rem; }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+    }
+
+    .topbar-logo {
+      display: none;
+      width: 46px;
+      height: 38px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.35rem;
+    }
+
+    .tabs button {
+      background: #333;
+      color: #ccc;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .tabs button.active {
+      background: var(--accent);
+      color: #111;
+      border-color: var(--accent);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) 1fr;
+      gap: 1.5rem;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem;
+    }
+
+    @media (max-width: 960px) {
+      .app { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: var(--panel);
+      color: var(--panel-text);
+      border-radius: 8px;
+      padding: 1.25rem;
+      height: fit-content;
+      position: sticky;
+      top: 1rem;
+    }
+
+    .view { display: none; }
+    .view.active { display: contents; }
+
+    .view.active .panel,
+    .view.active .preview-wrap,
+    .view.active .consulta-wrap,
+    .view.active .clientes-wrap,
+    .view.active .motoristas-wrap,
+    .view.active .conferentes-wrap,
+    .view.active .baixa-wrap,
+    .view.active .preco-wrap {
+      display: block;
+    }
+
+    .preco-badge {
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .preco-badge:hover {
+      border-color: var(--accent);
+    }
+
+    .preco-atual-card {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 1.25rem;
+      text-align: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .preco-atual-card .lbl {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #999;
+      margin-bottom: 0.35rem;
+    }
+
+    .preco-atual-card .valor {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .preco-exemplo {
+      background: #252525;
+      border-radius: 6px;
+      padding: 0.85rem 1rem;
+      font-size: 0.85rem;
+      color: #bbb;
+      margin-top: 1rem;
+      line-height: 1.5;
+    }
+
+    .preco-exemplo strong { color: #fff; }
+
+    .panel h2 {
+      font-size: 1rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .panel .subtitle {
+      color: #aaa;
+      font-size: 0.8rem;
+      margin-bottom: 1rem;
+    }
+
+    .field { margin-bottom: 0.85rem; position: relative; }
+
+    .field label {
+      display: block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #999;
+      margin-bottom: 0.3rem;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      padding: 0.55rem 0.7rem;
+      background: #2c2c2c;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .field input:disabled,
+    .field input[readonly] {
+      opacity: 0.85;
+      cursor: default;
+      background: #252525;
+    }
+
+    .hint {
+      font-size: 0.72rem;
+      color: #888;
+      margin-top: 0.25rem;
+    }
+
+    .date-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.2fr;
+      gap: 0.45rem;
+    }
+
+    .numero-badge,
+    .preco-badge {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.65rem 0.8rem;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 4px;
+      margin-bottom: 0.7rem;
+    }
+
+    .numero-badge span,
+    .preco-badge span {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #999;
+    }
+
+    .numero-badge strong,
+    .preco-badge strong {
+      font-size: 1.2rem;
+      color: var(--accent);
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    button.btn {
+      padding: 0.65rem 1rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    button.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-save { background: var(--accent); color: #111; }
+    .btn-print { background: #3a3a3a; color: #fff; border: 1px solid #555; }
+    .btn-clear { background: transparent; color: #aaa; border: 1px solid #444; }
+    .btn-secondary { background: #3a3a3a; color: #fff; border: 1px solid #555; }
+
+    .status {
+      margin-top: 0.85rem;
+      padding: 0.6rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      display: none;
+    }
+
+    .status.show { display: block; }
+    .status.ok {
+      background: rgba(26, 122, 60, 0.2);
+      color: #7dcea0;
+      border: 1px solid rgba(26, 122, 60, 0.45);
+    }
+    .status.err {
+      background: rgba(176, 0, 32, 0.2);
+      color: #f5a9b5;
+      border: 1px solid rgba(176, 0, 32, 0.45);
+    }
+
+    /* Autocomplete */
+    .suggest {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 100%;
+      z-index: 20;
+      background: #1a1a1a;
+      border: 1px solid #555;
+      border-radius: 4px;
+      max-height: 180px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .suggest.show { display: block; }
+
+    .suggest button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.55rem 0.7rem;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #333;
+      color: #eee;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .suggest button:hover,
+    .suggest button.active {
+      background: #333;
+      color: var(--accent);
+    }
+
+    /* Prévia / consulta */
+    .preview-wrap,
+    .consulta-wrap,
+    .clientes-wrap,
+    .motoristas-wrap,
+    .conferentes-wrap,
+    .baixa-wrap {
+      display: none;
+    }
+
+    .preview-label {
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.65rem;
+    }
+
+    .vale {
+      width: 100%;
+      max-width: 760px;
+      background: var(--paper);
+      border: 3px solid #000;
+      padding: 1.35rem 1.6rem 2rem;
+      color: var(--ink);
+    }
+
+    .vale-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1.75rem;
+      min-height: 70px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    .logo-cubes { width: 56px; height: 50px; flex-shrink: 0; }
+
+    .logo-img {
+      display: none;
+      width: 72px;
+      height: 56px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .logo-text { display: flex; flex-direction: column; line-height: 1; }
+
+    .logo-text .brand {
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: #222;
+      text-transform: uppercase;
+    }
+
+    .logo-text .sub {
+      font-size: 1rem;
+      font-style: italic;
+      color: #333;
+      margin-top: 2px;
+    }
+
+    .caixa-qtd {
+      width: 150px;
+      height: 72px;
+      border: 2.5px solid var(--box);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      padding: 0.35rem;
+    }
+
+    .caixa-qtd .lbl {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--box);
+      margin-bottom: 0.15rem;
+    }
+
+    .caixa-qtd .valor-qtd {
+      font-size: 1.5rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .vale-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 0.45rem;
+      margin-bottom: 1.55rem;
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    .vale-row .lbl { flex-shrink: 0; white-space: nowrap; }
+
+    .vale-row .line {
+      border-bottom: 1.5px solid var(--line);
+      min-height: 1.4em;
+      padding: 0 0.25rem 0.05rem;
+      font-weight: 600;
+      flex: 1;
+      min-width: 40px;
+    }
+
+    .vale-row.numero-valor {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 1.25rem;
+      align-items: end;
+    }
+
+    .vale-row.numero-valor .grupo {
+      display: flex;
+      align-items: flex-end;
+      gap: 0.45rem;
+      min-width: 0;
+    }
+
+    .vale-row.data { gap: 0.4rem; }
+
+    .vale-row.data .line {
+      flex: 0 0 78px;
+      max-width: 100px;
+      text-align: center;
+    }
+
+    .vale-row.data .de { flex: none; font-weight: 700; }
+
+    .vale-row.assinatura { margin-bottom: 0.25rem; margin-top: 0.35rem; }
+    .vale-row.assinatura .line { min-height: 2em; }
+
+    .barcode {
+      margin: 0 auto 0.75rem;
+      min-height: 48px;
+      text-align: center;
+    }
+
+    .barcode svg {
+      display: block;
+      max-width: 210px;
+      height: 48px;
+      margin: 0 auto;
+    }
+
+    .status-vale {
+      display: inline-block;
+      padding: 0.2rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status-vale.aberto { background: #fff0c2; color: #795700; }
+    .status-vale.fechado { background: #d7f3df; color: #176b32; }
+
+    .check-documento {
+      display: flex;
+      gap: 0.6rem;
+      align-items: flex-start;
+      padding: 0.8rem;
+      background: #2a2a2a;
+      border: 1px solid #555;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .check-documento input {
+      width: auto;
+      margin-top: 0.15rem;
+      accent-color: var(--accent);
+    }
+
+    .file-upload-btn {
+      display: block;
+      width: 100%;
+      padding: 0.65rem 1rem;
+      background: #3a3a3a;
+      color: #fff;
+      border: 1px solid #666;
+      border-radius: 4px;
+      text-align: center;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+    }
+
+    .file-upload-btn:hover { border-color: var(--accent); }
+    .file-upload-btn input { display: none; }
+
+    /* Tabela consulta */
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .toolbar input {
+      flex: 1;
+      min-width: 160px;
+      padding: 0.55rem 0.7rem;
+      background: #2c2c2c;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+
+    .card-list {
+      background: var(--paper);
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      overflow: hidden;
+      color: #111;
+    }
+
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      color: #111;
+      background: #fff;
+    }
+
+    table.data th,
+    table.data td {
+      padding: 0.55rem 0.65rem;
+      text-align: left;
+      border-bottom: 1px solid #e5e5e5;
+      color: #111;
+    }
+
+    table.data th {
+      background: #f3f3f3;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #555;
+    }
+
+    table.data td strong {
+      color: #111;
+    }
+
+    table.data tr:hover td { background: #fafafa; }
+
+    table.data button.link {
+      background: none;
+      border: none;
+      color: #0b57d0;
+      cursor: pointer;
+      font-weight: 700;
+      font-family: inherit;
+      text-decoration: underline;
+      padding: 0;
+      margin-right: 0.65rem;
+    }
+
+    table.data button.link.danger {
+      color: #b00020;
+    }
+
+    .empty {
+      padding: 1.5rem;
+      text-align: center;
+      color: #666 !important;
+      font-size: 0.9rem;
+    }
+
+    .preco-edit {
+      display: flex;
+      gap: 0.45rem;
+      margin-top: 0.35rem;
+    }
+
+    .preco-edit input { flex: 1; }
+
+    @media print {
+      body { background: #fff; }
+      .topbar,
+      .panel,
+      .preview-label,
+      .consulta-wrap,
+      .clientes-wrap,
+      .motoristas-wrap,
+      .conferentes-wrap,
+      .baixa-wrap,
+      .preco-wrap,
+      #view-consultar,
+      #view-clientes,
+      #view-motoristas,
+      #view-conferentes,
+      #view-baixa,
+      #view-preco { display: none !important; }
+      .app { display: block; padding: 0; max-width: none; }
+      #view-emitir { display: block !important; }
+      #view-emitir .preview-wrap { display: block !important; }
+      .vale {
+        max-width: none;
+        width: 100%;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <img id="topbar-logo" class="topbar-logo" alt="Logo da empresa" />
+      <h1 id="app-title">BINHO Transportes</h1>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button type="button" class="active" data-tab="emitir">Emitir</button>
+      <button type="button" data-tab="consultar">Consultar</button>
+      <button type="button" data-tab="baixa">Baixa de vale</button>
+      <button type="button" data-tab="clientes">Clientes</button>
+      <button type="button" data-tab="motoristas">Motoristas</button>
+      <button type="button" data-tab="conferentes">Conferentes</button>
+      <button type="button" data-tab="preco">Configurações</button>
+    </nav>
+  </header>
+
+  <!-- ===== EMITIR ===== -->
+  <div class="view active" id="view-emitir">
+    <div class="app">
+      <aside class="panel">
+        <h2>Emitir vale</h2>
+        <p class="subtitle">Quantidade calcula o valor. Assinatura só na impressão.</p>
+
+        <div class="numero-badge">
+          <span>Próximo vale Nº</span>
+          <strong id="badge-numero">—</strong>
+        </div>
+
+        <div class="preco-badge" id="btn-ir-preco" title="Clique para alterar o valor do pallet" role="button" tabindex="0">
+          <span>Preço / pallet · alterar</span>
+          <strong id="badge-preco">—</strong>
+        </div>
+
+        <form id="form-vale" autocomplete="off">
+          <div class="field">
+            <label for="quantidade">Quantidade de pallets</label>
+            <input id="quantidade" name="quantidade" type="number" min="1" step="1" placeholder="Ex: 10" />
+            <p class="hint">O valor é calculado automaticamente (qtd × preço).</p>
+          </div>
+
+          <div class="field">
+            <label for="valor">Valor (automático)</label>
+            <input id="valor" name="valor" type="text" readonly placeholder="Preencha a quantidade" />
+          </div>
+
+          <div class="field">
+            <label for="nome">Nome do cliente</label>
+            <input id="nome" name="nome" type="text" placeholder="Comece a digitar…" required autocomplete="off" />
+            <div id="suggest-nome" class="suggest" role="listbox"></div>
+            <p class="hint">Sugestões do banco de clientes. Cliente novo é cadastrado ao emitir.</p>
+          </div>
+
+          <div class="field">
+            <label for="motorista">Nome do motorista</label>
+            <input id="motorista" name="motorista" type="text" placeholder="Comece a digitar…" required autocomplete="off" />
+            <div id="suggest-motorista" class="suggest" role="listbox"></div>
+            <p class="hint">Busque pelo nome ou placa. Cadastro novo é salvo ao emitir.</p>
+          </div>
+
+          <div class="field">
+            <label for="placa">Placa do veículo</label>
+            <input id="placa" name="placa" type="text" maxlength="10" placeholder="Ex: ABC1D23" required autocomplete="off" />
+          </div>
+
+          <div class="field">
+            <label for="conferente-expedidor">Conferente expedidor</label>
+            <input id="conferente-expedidor" name="conferenteExpedidor" type="text" placeholder="Comece a digitar…" required autocomplete="off" />
+            <div id="suggest-conferente-expedidor" class="suggest" role="listbox"></div>
+          </div>
+
+          <div class="field">
+            <label for="conferente-recebedor">Conferente recebedor</label>
+            <input id="conferente-recebedor" name="conferenteRecebedor" type="text" placeholder="Comece a digitar…" required autocomplete="off" />
+            <div id="suggest-conferente-recebedor" class="suggest" role="listbox"></div>
+            <p class="hint">Nomes novos são salvos automaticamente em cada tipo.</p>
+          </div>
+
+          <div class="field">
+            <label>Data</label>
+            <div class="date-row">
+              <input id="dia" name="dia" type="text" inputmode="numeric" maxlength="2" placeholder="Dia" />
+              <input id="mes" name="mes" type="text" inputmode="numeric" maxlength="2" placeholder="Mês" />
+              <input id="ano" name="ano" type="text" inputmode="numeric" maxlength="4" placeholder="Ano" />
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="btn btn-save" id="btn-salvar">Emitir e salvar</button>
+            <button type="button" class="btn btn-print" id="btn-imprimir">Imprimir / PDF</button>
+            <button type="button" class="btn btn-clear" id="btn-limpar">Limpar campos</button>
+          </div>
+        </form>
+
+        <div id="status" class="status" role="status"></div>
+      </aside>
+
+      <main class="preview-wrap">
+        <div class="preview-label">Pré-visualização (assinatura em branco para o cliente)</div>
+        <article class="vale" id="vale" aria-label="Vale Pallet">
+          <div class="barcode" id="preview-barcode" aria-label="Código de barras do vale"></div>
+
+          <header class="vale-header">
+            <div class="logo">
+              <img id="logo-imagem" class="logo-img" alt="Logo da empresa" />
+              <svg id="logo-padrao" class="logo-cubes" viewBox="0 0 72 62" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <g>
+                  <path fill="#43A047" d="M10 20 L24 12 L38 20 L24 28 Z"/>
+                  <path fill="#2E7D32" d="M10 20 L24 28 L24 42 L10 34 Z"/>
+                  <path fill="#66BB6A" d="M24 28 L38 20 L38 34 L24 42 Z"/>
+                </g>
+                <g>
+                  <path fill="#FFC107" d="M30 14 L44 6 L58 14 L44 22 Z"/>
+                  <path fill="#F9A825" d="M30 14 L44 22 L44 36 L30 28 Z"/>
+                  <path fill="#FFD54F" d="M44 22 L58 14 L58 28 L44 36 Z"/>
+                </g>
+                <g>
+                  <path fill="#E53935" d="M6 36 L20 28 L34 36 L20 44 Z"/>
+                  <path fill="#C62828" d="M6 36 L20 44 L20 56 L6 48 Z"/>
+                  <path fill="#EF5350" d="M20 44 L34 36 L34 48 L20 56 Z"/>
+                </g>
+                <g>
+                  <path fill="#1E88E5" d="M26 32 L40 24 L54 32 L40 40 Z"/>
+                  <path fill="#1565C0" d="M26 32 L40 40 L40 52 L26 44 Z"/>
+                  <path fill="#42A5F5" d="M40 40 L54 32 L54 44 L40 52 Z"/>
+                </g>
+              </svg>
+              <div class="logo-text">
+                <span class="brand" id="preview-empresa">BINHO</span>
+                <span class="sub" id="preview-subtitulo">Transportes</span>
+              </div>
+            </div>
+            <div class="caixa-qtd">
+              <span class="lbl">Qtd.</span>
+              <span class="valor-qtd" id="preview-quantidade"></span>
+            </div>
+          </header>
+
+          <div class="vale-row numero-valor">
+            <div class="grupo">
+              <span class="lbl">VALE PALLET Nº</span>
+              <span class="line" id="preview-numero"></span>
+            </div>
+            <div class="grupo">
+              <span class="lbl">VALOR:</span>
+              <span class="line" id="preview-valor"></span>
+            </div>
+          </div>
+
+          <div class="vale-row">
+            <span class="lbl">Nome:</span>
+            <span class="line" id="preview-nome"></span>
+          </div>
+
+          <div class="vale-row numero-valor">
+            <div class="grupo">
+              <span class="lbl">Motorista:</span>
+              <span class="line" id="preview-motorista"></span>
+            </div>
+            <div class="grupo">
+              <span class="lbl">Placa:</span>
+              <span class="line" id="preview-placa"></span>
+            </div>
+          </div>
+
+          <div class="vale-row numero-valor">
+            <div class="grupo">
+              <span class="lbl">Expedidor:</span>
+              <span class="line" id="preview-conferente-expedidor"></span>
+            </div>
+            <div class="grupo">
+              <span class="lbl">Recebedor:</span>
+              <span class="line" id="preview-conferente-recebedor"></span>
+            </div>
+          </div>
+
+          <div class="vale-row data">
+            <span class="lbl">Data:</span>
+            <span class="line" id="preview-dia"></span>
+            <span class="de">De</span>
+            <span class="line" id="preview-mes"></span>
+            <span class="de">De</span>
+            <span class="line" id="preview-ano"></span>
+          </div>
+
+          <div class="vale-row assinatura">
+            <span class="lbl">Assinatura:</span>
+            <span class="line" id="preview-assinatura"></span>
+          </div>
+        </article>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===== CONSULTAR ===== -->
+  <div class="view" id="view-consultar">
+    <div class="app" style="grid-template-columns: 1fr;">
+      <section class="consulta-wrap panel" style="position: static; max-width: 100%;">
+        <h2>Consultar vales</h2>
+        <p class="subtitle">Busca o que foi salvo na planilha Google Sheets.</p>
+
+        <div class="toolbar">
+          <input id="filtro-vales" type="search" placeholder="Buscar por nº, cliente, motorista, placa, conferente…" />
+          <button type="button" class="btn btn-secondary" id="btn-buscar-vales">Buscar</button>
+          <button type="button" class="btn btn-clear" id="btn-atualizar-vales">Atualizar</button>
+        </div>
+
+        <div class="card-list">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Nº</th>
+                <th>Qtd</th>
+                <th>Valor</th>
+                <th>Cliente</th>
+                <th>Motorista</th>
+                <th>Placa</th>
+                <th>Expedidor</th>
+                <th>Recebedor</th>
+                <th>Situação</th>
+                <th>Data</th>
+                <th>Emitido em</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabela-vales">
+              <tr><td colspan="12" class="empty">Carregando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="status-consulta" class="status" role="status"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===== BAIXA DE VALE ===== -->
+  <div class="view" id="view-baixa">
+    <div class="app" style="grid-template-columns: minmax(300px, 460px) 1fr;">
+      <aside class="panel">
+        <h2>Baixa de vale pallet</h2>
+        <p class="subtitle">Bipe o código de barras ou digite o número do vale.</p>
+
+        <form id="form-baixa" autocomplete="off">
+          <div class="field">
+            <label for="baixa-numero">Número do vale pallet</label>
+            <input id="baixa-numero" type="text" inputmode="numeric" required placeholder="Bipe ou digite o número" />
+            <p class="hint">O leitor de código de barras preencherá este campo automaticamente.</p>
+          </div>
+
+          <div class="field">
+            <label class="check-documento" for="baixa-documento">
+              <input id="baixa-documento" type="checkbox" required />
+              <span>Confirmo que recebi do motorista o documento devidamente assinado.</span>
+            </label>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="btn btn-save" id="btn-baixar-vale">Dar baixa no vale</button>
+          </div>
+        </form>
+
+        <div id="status-baixa" class="status" role="status"></div>
+      </aside>
+
+      <section class="baixa-wrap">
+        <div class="preview-label">Controle de devolução</div>
+        <div class="card-list" style="padding: 1.25rem;">
+          <p style="color:#333; margin-bottom:0.75rem;">
+            Todos os vales novos ficam como <strong>EM ABERTO</strong>.
+          </p>
+          <p style="color:#555; line-height:1.6;">
+            A baixa registra a data e hora da devolução. Um vale fechado não poderá receber uma segunda baixa.
+          </p>
+          <div id="baixa-resultado" style="margin-top:1rem; color:#176b32; font-weight:700;"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===== CLIENTES ===== -->
+  <div class="view" id="view-clientes">
+    <div class="app">
+      <aside class="panel">
+        <h2>Cadastrar cliente</h2>
+        <p class="subtitle">Banco separado usado no autocomplete do nome.</p>
+
+        <form id="form-cliente" autocomplete="off">
+          <div class="field">
+            <label for="cli-nome">Nome</label>
+            <input id="cli-nome" required placeholder="Nome do cliente" />
+          </div>
+          <div class="field">
+            <label for="cli-telefone">Telefone</label>
+            <input id="cli-telefone" placeholder="Opcional" />
+          </div>
+          <div class="field">
+            <label for="cli-obs">Observação</label>
+            <input id="cli-obs" placeholder="Opcional" />
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn btn-save">Salvar cliente</button>
+          </div>
+        </form>
+
+        <div id="status-clientes" class="status" role="status"></div>
+      </aside>
+
+      <section class="clientes-wrap">
+        <div class="preview-label">Clientes cadastrados</div>
+        <div class="toolbar">
+          <input id="filtro-clientes" type="search" placeholder="Filtrar clientes…" />
+          <button type="button" class="btn btn-secondary" id="btn-atualizar-clientes">Atualizar</button>
+        </div>
+        <div class="card-list">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Telefone</th>
+                <th>Observação</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabela-clientes">
+              <tr><td colspan="4" class="empty">Carregando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===== MOTORISTAS ===== -->
+  <div class="view" id="view-motoristas">
+    <div class="app">
+      <aside class="panel">
+        <h2>Cadastrar motorista e placa</h2>
+        <p class="subtitle">Um motorista pode ter mais de uma placa cadastrada.</p>
+
+        <form id="form-motorista" autocomplete="off">
+          <div class="field">
+            <label for="mot-nome">Nome do motorista</label>
+            <input id="mot-nome" required placeholder="Nome do motorista" />
+          </div>
+          <div class="field">
+            <label for="mot-placa">Placa</label>
+            <input id="mot-placa" maxlength="10" required placeholder="Ex: ABC1D23" />
+          </div>
+          <div class="field">
+            <label for="mot-obs">Observação</label>
+            <input id="mot-obs" placeholder="Opcional" />
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn btn-save">Salvar motorista e placa</button>
+          </div>
+        </form>
+
+        <div id="status-motoristas" class="status" role="status"></div>
+      </aside>
+
+      <section class="motoristas-wrap">
+        <div class="preview-label">Motoristas e placas cadastrados</div>
+        <div class="toolbar">
+          <input id="filtro-motoristas" type="search" placeholder="Filtrar por nome ou placa…" />
+          <button type="button" class="btn btn-secondary" id="btn-atualizar-motoristas">Atualizar</button>
+        </div>
+        <div class="card-list">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Motorista</th>
+                <th>Placa</th>
+                <th>Observação</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabela-motoristas">
+              <tr><td colspan="4" class="empty">Carregando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===== CONFERENTES ===== -->
+  <div class="view" id="view-conferentes">
+    <div class="app">
+      <aside class="panel">
+        <h2>Cadastrar conferente</h2>
+        <p class="subtitle">Banco de conferentes de liberação usado no autocomplete.</p>
+
+        <form id="form-conferente" autocomplete="off">
+          <div class="field">
+            <label for="conf-nome">Nome</label>
+            <input id="conf-nome" required placeholder="Nome do conferente" />
+          </div>
+          <div class="field">
+            <label for="conf-tipo">Tipo</label>
+            <select id="conf-tipo" required>
+              <option value="EXPEDIDOR">Expedidor</option>
+              <option value="RECEBEDOR">Recebedor</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="conf-obs">Observação</label>
+            <input id="conf-obs" placeholder="Opcional" />
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn btn-save">Salvar conferente</button>
+          </div>
+        </form>
+
+        <div id="status-conferentes" class="status" role="status"></div>
+      </aside>
+
+      <section class="conferentes-wrap">
+        <div class="preview-label">Conferentes cadastrados</div>
+        <div class="toolbar">
+          <input id="filtro-conferentes" type="search" placeholder="Filtrar conferentes…" />
+          <button type="button" class="btn btn-secondary" id="btn-atualizar-conferentes">Atualizar</button>
+        </div>
+        <div class="card-list">
+          <table class="data">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Tipo</th>
+                <th>Observação</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabela-conferentes">
+              <tr><td colspan="4" class="empty">Carregando…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===== VALOR PALLET ===== -->
+  <div class="view" id="view-preco">
+    <div class="app" style="grid-template-columns: minmax(300px, 420px) 1fr;">
+      <aside class="panel">
+        <h2>Valor do pallet</h2>
+        <p class="subtitle">Altere o preço unitário usado em todos os novos vales.</p>
+
+        <div class="preco-atual-card">
+          <div class="lbl">Valor atual por pallet</div>
+          <div class="valor" id="preco-atual-display">—</div>
+        </div>
+
+        <form id="form-preco" autocomplete="off">
+          <div class="field">
+            <label for="input-preco">Novo valor (R$)</label>
+            <input id="input-preco" type="number" min="0" step="0.01" placeholder="Ex: 15,00" required />
+            <p class="hint">Salvo na aba Config da planilha Google Sheets.</p>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="btn btn-save" id="btn-salvar-preco">Salvar valor do pallet</button>
+            <button type="button" class="btn btn-clear" id="btn-voltar-emitir">Voltar para emitir</button>
+          </div>
+        </form>
+
+        <div class="preco-exemplo" id="preco-exemplo">
+          Exemplo: 10 pallets × <strong>—</strong> = <strong>—</strong>
+        </div>
+
+        <div id="status-preco" class="status" role="status"></div>
+
+        <div style="border-top:1px solid #444; margin:1.25rem 0;"></div>
+
+        <h2>Identidade da empresa</h2>
+        <p class="subtitle">Personalize o nome e a logo exibidos no comprovante.</p>
+
+        <form id="form-marca" autocomplete="off">
+          <div class="field">
+            <label for="marca-nome">Nome da empresa</label>
+            <input id="marca-nome" required placeholder="Ex: BINHO" />
+          </div>
+          <div class="field">
+            <label for="marca-subtitulo">Subtítulo</label>
+            <input id="marca-subtitulo" placeholder="Ex: Transportes" />
+          </div>
+          <div class="field">
+            <label for="marca-logo-url">URL da logo</label>
+            <input id="marca-logo-url" type="url" placeholder="https://site.com/logo.png" />
+            <p class="hint">Use um link público direto para uma imagem PNG, JPG, SVG ou WebP. Deixe vazio para usar a logo padrão.</p>
+          </div>
+          <div class="field">
+            <label>Logo por arquivo</label>
+            <label class="file-upload-btn" for="marca-logo-arquivo">
+              Anexar logo da empresa
+              <input id="marca-logo-arquivo" type="file" accept="image/png,image/jpeg,image/webp" />
+            </label>
+            <p class="hint" id="nome-arquivo-logo">Nenhuma imagem selecionada.</p>
+            <p class="hint">PNG, JPG ou WebP de até 2 MB. A imagem é reduzida e fica fixa na planilha Config.</p>
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn btn-save" id="btn-salvar-marca">Salvar configurações e fixar logo</button>
+          </div>
+        </form>
+
+        <div id="status-marca" class="status" role="status"></div>
+      </aside>
+
+      <section class="preco-wrap">
+        <div class="preview-label">Como funciona</div>
+        <div class="card-list" style="padding: 1.25rem;">
+          <p style="margin-bottom: 0.75rem; color: #333;">
+            O <strong>valor do vale</strong> é calculado assim:
+          </p>
+          <p style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">
+            Quantidade × Valor do pallet = Total do vale
+          </p>
+          <ul style="color: #555; padding-left: 1.2rem; line-height: 1.7;">
+            <li>Ao mudar o valor aqui, os <strong>próximos</strong> vales usam o novo preço.</li>
+            <li>Vales já emitidos <strong>não são alterados</strong>.</li>
+            <li>Você também pode clicar no preço na tela de Emitir para abrir este menu.</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="./config.js"></script>
+  <script>
+    const SCRIPT_URL = (window.VALE_CONFIG && window.VALE_CONFIG.scriptUrl) || "";
+    const PRECO_FALLBACK = (window.VALE_CONFIG && window.VALE_CONFIG.precoUnitarioFallback) || 10;
+    const SENHA_EXCLUSAO = (window.VALE_CONFIG && window.VALE_CONFIG.senhaExclusao) || "1982";
+
+    let proximoNumero = null;
+    let precoUnitario = PRECO_FALLBACK;
+    let marcaConfig = {
+      nomeEmpresa: "BINHO",
+      subtituloEmpresa: "Transportes",
+      logoUrl: "",
+    };
+    let clientesCache = [];
+    let motoristasCache = [];
+    let conferentesCache = [];
+    let suggestIndex = -1;
+    let suggestMotoristaIndex = -1;
+    let suggestExpedidorIndex = -1;
+    let suggestRecebedorIndex = -1;
+
+    const els = {
+      status: document.getElementById("status"),
+      statusConsulta: document.getElementById("status-consulta"),
+      statusClientes: document.getElementById("status-clientes"),
+      statusMotoristas: document.getElementById("status-motoristas"),
+      statusConferentes: document.getElementById("status-conferentes"),
+      statusBaixa: document.getElementById("status-baixa"),
+      statusPreco: document.getElementById("status-preco"),
+      statusMarca: document.getElementById("status-marca"),
+      badgeNumero: document.getElementById("badge-numero"),
+      badgePreco: document.getElementById("badge-preco"),
+      precoAtualDisplay: document.getElementById("preco-atual-display"),
+      precoExemplo: document.getElementById("preco-exemplo"),
+      quantidade: document.getElementById("quantidade"),
+      valor: document.getElementById("valor"),
+      nome: document.getElementById("nome"),
+      motorista: document.getElementById("motorista"),
+      placa: document.getElementById("placa"),
+      conferenteExpedidor: document.getElementById("conferente-expedidor"),
+      conferenteRecebedor: document.getElementById("conferente-recebedor"),
+      dia: document.getElementById("dia"),
+      mes: document.getElementById("mes"),
+      ano: document.getElementById("ano"),
+      suggest: document.getElementById("suggest-nome"),
+      suggestMotorista: document.getElementById("suggest-motorista"),
+      suggestConferenteExpedidor: document.getElementById("suggest-conferente-expedidor"),
+      suggestConferenteRecebedor: document.getElementById("suggest-conferente-recebedor"),
+      tabelaVales: document.getElementById("tabela-vales"),
+      tabelaClientes: document.getElementById("tabela-clientes"),
+      tabelaMotoristas: document.getElementById("tabela-motoristas"),
+      tabelaConferentes: document.getElementById("tabela-conferentes"),
+      filtroVales: document.getElementById("filtro-vales"),
+      filtroClientes: document.getElementById("filtro-clientes"),
+      filtroMotoristas: document.getElementById("filtro-motoristas"),
+      filtroConferentes: document.getElementById("filtro-conferentes"),
+      baixaNumero: document.getElementById("baixa-numero"),
+      baixaDocumento: document.getElementById("baixa-documento"),
+      baixaResultado: document.getElementById("baixa-resultado"),
+      inputPreco: document.getElementById("input-preco"),
+      marcaNome: document.getElementById("marca-nome"),
+      marcaSubtitulo: document.getElementById("marca-subtitulo"),
+      marcaLogoUrl: document.getElementById("marca-logo-url"),
+      marcaLogoArquivo: document.getElementById("marca-logo-arquivo"),
+      nomeArquivoLogo: document.getElementById("nome-arquivo-logo"),
+      appTitle: document.getElementById("app-title"),
+      topbarLogo: document.getElementById("topbar-logo"),
+      logoImagem: document.getElementById("logo-imagem"),
+      logoPadrao: document.getElementById("logo-padrao"),
+      previewEmpresa: document.getElementById("preview-empresa"),
+      previewSubtitulo: document.getElementById("preview-subtitulo"),
+    };
+
+    function configOk() {
+      return SCRIPT_URL && !String(SCRIPT_URL).includes("COLE_AQUI");
+    }
+
+    function mostrarStatus(el, msg, tipo) {
+      el.textContent = msg;
+      el.className = `status show ${tipo}`;
+    }
+
+    function formatarMoeda(n) {
+      return "R$ " + Number(n || 0).toFixed(2).replace(".", ",");
+    }
+
+    function aplicarMarca(marca) {
+      marcaConfig = {
+        nomeEmpresa: String((marca && marca.nomeEmpresa) || "BINHO").trim(),
+        subtituloEmpresa: String(
+          marca && marca.subtituloEmpresa !== undefined
+            ? marca.subtituloEmpresa
+            : "Transportes"
+        ).trim(),
+        logoUrl: String((marca && marca.logoUrl) || "").trim(),
+      };
+
+      const tituloCompleto = [marcaConfig.nomeEmpresa, marcaConfig.subtituloEmpresa]
+        .filter(Boolean)
+        .join(" ");
+      els.previewEmpresa.textContent = marcaConfig.nomeEmpresa;
+      els.previewSubtitulo.textContent = marcaConfig.subtituloEmpresa;
+      els.previewSubtitulo.style.display = marcaConfig.subtituloEmpresa ? "" : "none";
+      els.appTitle.textContent = tituloCompleto;
+      document.title = `Gerador Vale Pallet — ${tituloCompleto}`;
+
+      els.marcaNome.value = marcaConfig.nomeEmpresa;
+      els.marcaSubtitulo.value = marcaConfig.subtituloEmpresa;
+      els.marcaLogoUrl.value = marcaConfig.logoUrl;
+
+      if (marcaConfig.logoUrl) {
+        els.topbarLogo.onload = () => {
+          els.topbarLogo.style.display = "block";
+        };
+        els.topbarLogo.onerror = () => {
+          els.topbarLogo.style.display = "none";
+        };
+        els.topbarLogo.src = marcaConfig.logoUrl;
+        els.logoImagem.onload = () => {
+          els.logoImagem.style.display = "block";
+          els.logoPadrao.style.display = "none";
+        };
+        els.logoImagem.onerror = () => {
+          els.logoImagem.style.display = "none";
+          els.logoPadrao.style.display = "block";
+        };
+        els.logoImagem.src = marcaConfig.logoUrl;
+      } else {
+        els.topbarLogo.removeAttribute("src");
+        els.topbarLogo.style.display = "none";
+        els.logoImagem.removeAttribute("src");
+        els.logoImagem.style.display = "none";
+        els.logoPadrao.style.display = "block";
+      }
+    }
+
+    function preencherDataHoje() {
+      const hoje = new Date();
+      els.dia.value = String(hoje.getDate()).padStart(2, "0");
+      els.mes.value = String(hoje.getMonth() + 1).padStart(2, "0");
+      els.ano.value = String(hoje.getFullYear());
+    }
+
+    function calcularValor() {
+      const qtd = Number(String(els.quantidade.value).replace(",", "."));
+      if (!qtd || qtd <= 0 || isNaN(qtd)) {
+        els.valor.value = "";
+        return "";
+      }
+      const total = qtd * precoUnitario;
+      const texto = formatarMoeda(total);
+      els.valor.value = texto;
+      return texto;
+    }
+
+    function gerarCodigoBarras(numero) {
+      const patterns = {
+        "0": "nnnwwnwnn",
+        "1": "wnnwnnnnw",
+        "2": "nnwwnnnnw",
+        "3": "wnwwnnnnn",
+        "4": "nnnwwnnnw",
+        "5": "wnnwwnnnn",
+        "6": "nnwwwnnnn",
+        "7": "nnnwnnwnw",
+        "8": "wnnwnnwnn",
+        "9": "nnwwnnwnn",
+        "*": "nwnnwnwnn",
+      };
+      const valor = String(numero == null ? "" : numero).replace(/\D/g, "");
+      if (!valor) return "";
+
+      const texto = `*${valor}*`;
+      const narrow = 2;
+      const wide = 5;
+      const gap = 2;
+      let x = 6;
+      let barras = "";
+
+      for (const caractere of texto) {
+        const pattern = patterns[caractere];
+        for (let i = 0; i < pattern.length; i++) {
+          const largura = pattern[i] === "w" ? wide : narrow;
+          if (i % 2 === 0) {
+            barras += `<rect x="${x}" y="2" width="${largura}" height="31" fill="#000"/>`;
+          }
+          x += largura;
+        }
+        x += gap;
+      }
+
+      return `<svg viewBox="0 0 ${x + 6} 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vale ${valor}">
+        <rect width="100%" height="100%" fill="#fff"/>
+        ${barras}
+        <text x="${(x + 6) / 2}" y="45" text-anchor="middle" font-family="Arial" font-size="10">${valor}</text>
+      </svg>`;
+    }
+
+    function atualizarPreview() {
+      calcularValor();
+      document.getElementById("preview-quantidade").textContent = els.quantidade.value;
+      document.getElementById("preview-numero").textContent =
+        proximoNumero != null ? String(proximoNumero) : "";
+      document.getElementById("preview-valor").textContent = els.valor.value;
+      document.getElementById("preview-nome").textContent = els.nome.value.trim();
+      document.getElementById("preview-motorista").textContent = els.motorista.value.trim();
+      document.getElementById("preview-placa").textContent = els.placa.value.trim().toUpperCase();
+      document.getElementById("preview-conferente-expedidor").textContent =
+        els.conferenteExpedidor.value.trim();
+      document.getElementById("preview-conferente-recebedor").textContent =
+        els.conferenteRecebedor.value.trim();
+      document.getElementById("preview-dia").textContent = els.dia.value;
+      document.getElementById("preview-mes").textContent = els.mes.value;
+      document.getElementById("preview-ano").textContent = els.ano.value;
+      document.getElementById("preview-assinatura").textContent = "";
+      document.getElementById("preview-barcode").innerHTML = gerarCodigoBarras(proximoNumero);
+      els.badgeNumero.textContent = proximoNumero != null ? String(proximoNumero) : "—";
+      els.badgePreco.textContent = formatarMoeda(precoUnitario);
+      els.inputPreco.value = precoUnitario;
+      if (els.precoAtualDisplay) {
+        els.precoAtualDisplay.textContent = formatarMoeda(precoUnitario);
+      }
+      if (els.precoExemplo) {
+        const exemploQtd = 10;
+        els.precoExemplo.innerHTML =
+          `Exemplo: ${exemploQtd} pallets × <strong>${formatarMoeda(precoUnitario)}</strong> = <strong>${formatarMoeda(exemploQtd * precoUnitario)}</strong>`;
+      }
+    }
+
+    async function chamarPlanilha(payload) {
+      // Params planos na URL (mais confiável que JSON no Apps Script)
+      const url = new URL(SCRIPT_URL);
+      Object.keys(payload).forEach((key) => {
+        const val = payload[key];
+        if (val !== undefined && val !== null && val !== "") {
+          url.searchParams.set(key, String(val));
+        }
+      });
+
+      let resposta;
+      try {
+        resposta = await fetch(url.toString(), {
+          method: "GET",
+          redirect: "follow",
+        });
+      } catch (err) {
+        throw new Error(
+          "Failed to fetch — não conectou no Apps Script. Confira a internet, a URL em config.js e publique uma Nova versão com acesso “Qualquer pessoa”."
+        );
+      }
+
+      const texto = await resposta.text();
+      let dados;
+      try {
+        dados = JSON.parse(texto);
+      } catch {
+        throw new Error(
+          "Resposta inválida do Apps Script. Cole o Code.gs novo e publique uma Nova versão."
+        );
+      }
+      if (!dados.ok) throw new Error(dados.erro || "Erro na planilha.");
+      return dados;
+    }
+
+    async function enviarLogoPorPedacos(dataUrl) {
+      await chamarPlanilha({ action: "logo_reset" });
+      const tamanho = 1200;
+      const total = Math.ceil(dataUrl.length / tamanho);
+      for (let i = 0; i < total; i++) {
+        await chamarPlanilha({
+          action: "logo_chunk",
+          i: String(i),
+          d: dataUrl.substring(i * tamanho, (i + 1) * tamanho),
+        });
+      }
+      return chamarPlanilha({ action: "logo_commit" });
+    }
+
+    function lerArquivoComoDataUrl(arquivo) {
+      return new Promise((resolve, reject) => {
+        const leitor = new FileReader();
+        leitor.onload = () => resolve(String(leitor.result || ""));
+        leitor.onerror = () => reject(new Error("Não foi possível ler a imagem."));
+        leitor.readAsDataURL(arquivo);
+      });
+    }
+
+    function reduzirLogoParaSistema(arquivo) {
+      return new Promise((resolve, reject) => {
+        const leitor = new FileReader();
+        leitor.onerror = () => reject(new Error("Não foi possível ler a imagem."));
+        leitor.onload = () => {
+          const img = new Image();
+          img.onerror = () => reject(new Error("Arquivo de imagem inválido."));
+          img.onload = () => {
+            const maxLado = 220;
+            const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+            const largura = Math.max(1, Math.round(img.width * escala));
+            const altura = Math.max(1, Math.round(img.height * escala));
+            const canvas = document.createElement("canvas");
+            canvas.width = largura;
+            canvas.height = altura;
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, largura, altura);
+            ctx.drawImage(img, 0, 0, largura, altura);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+            if (dataUrl.length > 45000) {
+              reject(
+                new Error(
+                  "A logo ficou grande demais. Use uma imagem mais simples ou menor."
+                )
+              );
+              return;
+            }
+            resolve(dataUrl);
+          };
+          img.src = String(leitor.result || "");
+        };
+        leitor.readAsDataURL(arquivo);
+      });
+    }
+
+    /* —— Abas —— */
+    document.querySelectorAll(".tabs button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tabs button").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(`view-${btn.dataset.tab}`).classList.add("active");
+
+        if (btn.dataset.tab === "consultar") carregarVales();
+        if (btn.dataset.tab === "clientes") carregarClientes();
+        if (btn.dataset.tab === "motoristas") carregarMotoristas();
+        if (btn.dataset.tab === "conferentes") carregarConferentes();
+        if (btn.dataset.tab === "baixa") {
+          setTimeout(() => els.baixaNumero.focus(), 50);
+        }
+        if (btn.dataset.tab === "preco") {
+          els.inputPreco.value = precoUnitario;
+          aplicarMarca(marcaConfig);
+          atualizarPreview();
+        }
+      });
+    });
+
+    function irParaAba(nome) {
+      const btn = document.querySelector(`.tabs button[data-tab="${nome}"]`);
+      if (btn) btn.click();
+    }
+
+    document.getElementById("btn-ir-preco").addEventListener("click", () => irParaAba("preco"));
+    document.getElementById("btn-ir-preco").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        irParaAba("preco");
+      }
+    });
+    document.getElementById("btn-voltar-emitir").addEventListener("click", () => irParaAba("emitir"));
+
+    /* —— Autocomplete clientes —— */
+    function filtrarClientes(q) {
+      const termo = q.trim().toLowerCase();
+      if (!termo) return clientesCache.slice(0, 8);
+      return clientesCache
+        .filter((c) => c.nome.toLowerCase().includes(termo))
+        .slice(0, 8);
+    }
+
+    function renderSuggest(lista) {
+      if (!lista.length) {
+        els.suggest.classList.remove("show");
+        els.suggest.innerHTML = "";
+        suggestIndex = -1;
+        return;
+      }
+      els.suggest.innerHTML = lista
+        .map(
+          (c, i) =>
+            `<button type="button" role="option" data-i="${i}" class="${i === suggestIndex ? "active" : ""}">${escapeHtml(c.nome)}${c.telefone ? ` <small style="color:#888">· ${escapeHtml(c.telefone)}</small>` : ""}</button>`
+        )
+        .join("");
+      els.suggest.classList.add("show");
+
+      els.suggest.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          els.nome.value = lista[Number(btn.dataset.i)].nome;
+          els.suggest.classList.remove("show");
+          atualizarPreview();
+        });
+      });
+    }
+
+    function formatarEmitido(valor) {
+      if (!valor) return "";
+      const d = new Date(valor);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+      }
+      return String(valor);
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    els.nome.addEventListener("input", () => {
+      const lista = filtrarClientes(els.nome.value);
+      suggestIndex = -1;
+      renderSuggest(lista);
+      atualizarPreview();
+    });
+
+    els.nome.addEventListener("keydown", (e) => {
+      const lista = filtrarClientes(els.nome.value);
+      if (!lista.length) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        suggestIndex = Math.min(suggestIndex + 1, lista.length - 1);
+        renderSuggest(lista);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        suggestIndex = Math.max(suggestIndex - 1, 0);
+        renderSuggest(lista);
+      } else if (e.key === "Enter" && suggestIndex >= 0) {
+        e.preventDefault();
+        els.nome.value = lista[suggestIndex].nome;
+        els.suggest.classList.remove("show");
+        atualizarPreview();
+      } else if (e.key === "Escape") {
+        els.suggest.classList.remove("show");
+      }
+    });
+
+    els.nome.addEventListener("blur", () => {
+      setTimeout(() => els.suggest.classList.remove("show"), 150);
+    });
+
+    /* —— Autocomplete motoristas —— */
+    function filtrarMotoristas(q) {
+      const termo = q.trim().toLowerCase();
+      if (!termo) return motoristasCache.slice(0, 8);
+      return motoristasCache
+        .filter(
+          (m) =>
+            m.nome.toLowerCase().includes(termo) ||
+            m.placa.toLowerCase().includes(termo)
+        )
+        .slice(0, 8);
+    }
+
+    function selecionarMotorista(item) {
+      els.motorista.value = item.nome;
+      els.placa.value = item.placa;
+      els.suggestMotorista.classList.remove("show");
+      atualizarPreview();
+    }
+
+    function renderSuggestMotorista(lista) {
+      if (!lista.length) {
+        els.suggestMotorista.classList.remove("show");
+        els.suggestMotorista.innerHTML = "";
+        suggestMotoristaIndex = -1;
+        return;
+      }
+      els.suggestMotorista.innerHTML = lista
+        .map(
+          (m, i) =>
+            `<button type="button" role="option" data-i="${i}" class="${i === suggestMotoristaIndex ? "active" : ""}">${escapeHtml(m.nome)} <small style="color:#aaa">· ${escapeHtml(m.placa)}</small></button>`
+        )
+        .join("");
+      els.suggestMotorista.classList.add("show");
+
+      els.suggestMotorista.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          selecionarMotorista(lista[Number(btn.dataset.i)]);
+        });
+      });
+    }
+
+    els.motorista.addEventListener("input", () => {
+      suggestMotoristaIndex = -1;
+      renderSuggestMotorista(filtrarMotoristas(els.motorista.value));
+      atualizarPreview();
+    });
+
+    els.motorista.addEventListener("keydown", (e) => {
+      const lista = filtrarMotoristas(els.motorista.value);
+      if (!lista.length) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        suggestMotoristaIndex = Math.min(suggestMotoristaIndex + 1, lista.length - 1);
+        renderSuggestMotorista(lista);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        suggestMotoristaIndex = Math.max(suggestMotoristaIndex - 1, 0);
+        renderSuggestMotorista(lista);
+      } else if (e.key === "Enter" && suggestMotoristaIndex >= 0) {
+        e.preventDefault();
+        selecionarMotorista(lista[suggestMotoristaIndex]);
+      } else if (e.key === "Escape") {
+        els.suggestMotorista.classList.remove("show");
+      }
+    });
+
+    els.motorista.addEventListener("blur", () => {
+      setTimeout(() => els.suggestMotorista.classList.remove("show"), 150);
+    });
+
+    els.placa.addEventListener("input", () => {
+      els.placa.value = els.placa.value.toUpperCase().replace(/\s+/g, "");
+      atualizarPreview();
+    });
+
+    /* —— Autocomplete conferentes —— */
+    function filtrarConferentes(q, tipo) {
+      const termo = q.trim().toLowerCase();
+      return conferentesCache
+        .filter(
+          (c) =>
+            c.tipo === tipo &&
+            (!termo || c.nome.toLowerCase().includes(termo))
+        )
+        .slice(0, 8);
+    }
+
+    function configurarAutocompleteConferente(input, suggest, tipo, getIndex, setIndex) {
+      function render(lista) {
+        const index = getIndex();
+        if (!lista.length) {
+          suggest.classList.remove("show");
+          suggest.innerHTML = "";
+          setIndex(-1);
+          return;
+        }
+        suggest.innerHTML = lista
+          .map(
+            (c, i) =>
+              `<button type="button" role="option" data-i="${i}" class="${i === index ? "active" : ""}">${escapeHtml(c.nome)}</button>`
+          )
+          .join("");
+        suggest.classList.add("show");
+        suggest.querySelectorAll("button").forEach((btn) => {
+          btn.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            input.value = lista[Number(btn.dataset.i)].nome;
+            suggest.classList.remove("show");
+            atualizarPreview();
+          });
+        });
+      }
+
+      input.addEventListener("input", () => {
+        setIndex(-1);
+        render(filtrarConferentes(input.value, tipo));
+        atualizarPreview();
+      });
+      input.addEventListener("keydown", (e) => {
+        const lista = filtrarConferentes(input.value, tipo);
+        if (!lista.length) return;
+        let index = getIndex();
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          index = Math.min(index + 1, lista.length - 1);
+          setIndex(index);
+          render(lista);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          index = Math.max(index - 1, 0);
+          setIndex(index);
+          render(lista);
+        } else if (e.key === "Enter" && index >= 0) {
+          e.preventDefault();
+          input.value = lista[index].nome;
+          suggest.classList.remove("show");
+          atualizarPreview();
+        } else if (e.key === "Escape") {
+          suggest.classList.remove("show");
+        }
+      });
+      input.addEventListener("blur", () => {
+        setTimeout(() => suggest.classList.remove("show"), 150);
+      });
+    }
+
+    configurarAutocompleteConferente(
+      els.conferenteExpedidor,
+      els.suggestConferenteExpedidor,
+      "EXPEDIDOR",
+      () => suggestExpedidorIndex,
+      (valor) => { suggestExpedidorIndex = valor; }
+    );
+    configurarAutocompleteConferente(
+      els.conferenteRecebedor,
+      els.suggestConferenteRecebedor,
+      "RECEBEDOR",
+      () => suggestRecebedorIndex,
+      (valor) => { suggestRecebedorIndex = valor; }
+    );
+
+    els.quantidade.addEventListener("input", atualizarPreview);
+    ["dia", "mes", "ano"].forEach((id) => {
+      document.getElementById(id).addEventListener("input", atualizarPreview);
+    });
+
+    /* —— Emitir —— */
+    document.getElementById("form-vale").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!els.nome.value.trim()) {
+        mostrarStatus(els.status, "Informe o nome do cliente.", "err");
+        return;
+      }
+      if (!els.quantidade.value) {
+        mostrarStatus(els.status, "Informe a quantidade de pallets.", "err");
+        return;
+      }
+      if (!els.motorista.value.trim()) {
+        mostrarStatus(els.status, "Informe o nome do motorista.", "err");
+        return;
+      }
+      if (!els.placa.value.trim()) {
+        mostrarStatus(els.status, "Informe a placa do veículo.", "err");
+        return;
+      }
+      if (!els.conferenteExpedidor.value.trim()) {
+        mostrarStatus(els.status, "Informe o conferente expedidor.", "err");
+        return;
+      }
+      if (!els.conferenteRecebedor.value.trim()) {
+        mostrarStatus(els.status, "Informe o conferente recebedor.", "err");
+        return;
+      }
+      if (!configOk()) {
+        mostrarStatus(els.status, "Configure a URL do Apps Script em config.js.", "err");
+        return;
+      }
+
+      const btn = document.getElementById("btn-salvar");
+      btn.disabled = true;
+      mostrarStatus(els.status, "Salvando na planilha…", "ok");
+
+      try {
+        calcularValor();
+        const snapshot = {
+          quantidade: els.quantidade.value.trim(),
+          valor: els.valor.value.trim(),
+          nome: els.nome.value.trim(),
+          motorista: els.motorista.value.trim(),
+          placa: els.placa.value.trim().toUpperCase(),
+          conferenteExpedidor: els.conferenteExpedidor.value.trim(),
+          conferenteRecebedor: els.conferenteRecebedor.value.trim(),
+          dia: els.dia.value.trim(),
+          mes: els.mes.value.trim(),
+          ano: els.ano.value.trim(),
+        };
+
+        const resultado = await chamarPlanilha({
+          action: "emitir",
+          ...snapshot,
+        });
+
+        const numeroEmitido = Number(resultado.numero);
+        proximoNumero = numeroEmitido; // mostra o nº emitido na impressão
+        if (resultado.precoUnitario != null) precoUnitario = Number(resultado.precoUnitario);
+
+        els.quantidade.value = snapshot.quantidade;
+        els.valor.value = snapshot.valor || resultado.valor || "";
+        els.nome.value = snapshot.nome;
+        els.motorista.value = snapshot.motorista;
+        els.placa.value = snapshot.placa;
+        els.conferenteExpedidor.value = snapshot.conferenteExpedidor;
+        els.conferenteRecebedor.value = snapshot.conferenteRecebedor;
+        els.dia.value = snapshot.dia;
+        els.mes.value = snapshot.mes;
+        els.ano.value = snapshot.ano;
+        atualizarPreview();
+
+        mostrarStatus(
+          els.status,
+          `Vale Nº ${numeroEmitido} salvo. Abrindo impressão…`,
+          "ok"
+        );
+
+        await carregarClientesCache();
+        await carregarMotoristasCache();
+        await carregarConferentesCache();
+
+        // Abre impressão com o vale recém-gerado; depois prepara o próximo
+        setTimeout(() => {
+          window.print();
+
+          setTimeout(async () => {
+            els.quantidade.value = "";
+            els.valor.value = "";
+            els.nome.value = "";
+            els.motorista.value = "";
+            els.placa.value = "";
+            els.conferenteExpedidor.value = "";
+            els.conferenteRecebedor.value = "";
+            preencherDataHoje();
+            try {
+              const cfg = await chamarPlanilha({ action: "proximo" });
+              proximoNumero = Number(cfg.numero) || numeroEmitido + 1;
+              if (cfg.precoUnitario != null) precoUnitario = Number(cfg.precoUnitario);
+            } catch (_) {
+              proximoNumero = numeroEmitido + 1;
+            }
+            atualizarPreview();
+            mostrarStatus(
+              els.status,
+              `Vale Nº ${numeroEmitido} emitido. Próximo: Nº ${proximoNumero}`,
+              "ok"
+            );
+          }, 500);
+        }, 200);
+      } catch (err) {
+        console.error(err);
+        mostrarStatus(els.status, `Erro: ${err.message}`, "err");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("btn-imprimir").addEventListener("click", () => window.print());
+
+    document.getElementById("btn-limpar").addEventListener("click", () => {
+      els.quantidade.value = "";
+      els.valor.value = "";
+      els.nome.value = "";
+      els.motorista.value = "";
+      els.placa.value = "";
+      els.conferenteExpedidor.value = "";
+      els.conferenteRecebedor.value = "";
+      preencherDataHoje();
+      atualizarPreview();
+      els.status.className = "status";
+    });
+
+    /* —— Consulta —— */
+    async function carregarVales() {
+      if (!configOk()) {
+        els.tabelaVales.innerHTML = `<tr><td colspan="12" class="empty">Configure config.js</td></tr>`;
+        return;
+      }
+      els.tabelaVales.innerHTML = `<tr><td colspan="12" class="empty">Carregando…</td></tr>`;
+      try {
+        const dados = await chamarPlanilha({
+          action: "listar_vales",
+          filtro: els.filtroVales.value.trim(),
+          limite: 150,
+        });
+        const vales = (dados.vales || []).filter((v) => {
+          const n = Number(v.numero);
+          return v.numero !== "" && v.numero != null && !isNaN(n) && n > 0;
+        });
+
+        if (!vales.length) {
+          els.tabelaVales.innerHTML = `<tr><td colspan="12" class="empty">Nenhum vale encontrado.</td></tr>`;
+          return;
+        }
+        els.tabelaVales.innerHTML = vales
+          .map(
+            (v) => `<tr>
+              <td><strong>${escapeHtml(v.numero)}</strong></td>
+              <td>${escapeHtml(v.quantidade)}</td>
+              <td>${escapeHtml(v.valor)}</td>
+              <td>${escapeHtml(v.nome)}</td>
+              <td>${escapeHtml(v.motorista || "")}</td>
+              <td>${escapeHtml(v.placa || "")}</td>
+              <td>${escapeHtml(v.conferenteExpedidor || "")}</td>
+              <td>${escapeHtml(v.conferenteRecebedor || "")}</td>
+              <td>
+                <span class="status-vale ${v.status === "FECHADO" ? "fechado" : "aberto"}">${escapeHtml(v.status || "EM ABERTO")}</span>
+                ${v.baixadoEm ? `<small style="display:block;margin-top:0.25rem;color:#666">${escapeHtml(formatarEmitido(v.baixadoEm))}</small>` : ""}
+              </td>
+              <td>${escapeHtml(v.data || [v.dia, v.mes, v.ano].filter(Boolean).join("/"))}</td>
+              <td>${escapeHtml(formatarEmitido(v.emitidoEm))}</td>
+              <td>
+                <button type="button" class="link" data-num="${escapeHtml(v.numero)}">Reimprimir</button>
+                <button type="button" class="link danger" data-apagar="${escapeHtml(v.numero)}">Apagar</button>
+              </td>
+            </tr>`
+          )
+          .join("");
+
+        els.tabelaVales.querySelectorAll("button.link[data-num]").forEach((btn) => {
+          btn.addEventListener("click", () => reimprimirVale(btn.dataset.num));
+        });
+        els.tabelaVales.querySelectorAll("button.link[data-apagar]").forEach((btn) => {
+          btn.addEventListener("click", () => apagarVale(btn.dataset.apagar));
+        });
+      } catch (err) {
+        els.tabelaVales.innerHTML = `<tr><td colspan="12" class="empty">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    async function apagarVale(numero) {
+      if (numero === undefined || numero === null || String(numero).trim() === "") {
+        mostrarStatus(els.statusConsulta, "Número do vale inválido.", "err");
+        return;
+      }
+
+      const senha = window.prompt(
+        `Apagar o vale Nº ${numero}?\nDigite a senha de exclusão:`
+      );
+      if (senha === null) return;
+
+      if (String(senha) !== String(SENHA_EXCLUSAO)) {
+        mostrarStatus(els.statusConsulta, "Senha incorreta. Exclusão cancelada.", "err");
+        return;
+      }
+
+      if (!window.confirm(`Confirma apagar o vale Nº ${numero}? Esta ação não tem volta.`)) {
+        return;
+      }
+
+      try {
+        const dados = await chamarPlanilha({
+          action: "apagar_vale",
+          numero: String(numero),
+          senha: String(senha),
+        });
+        mostrarStatus(els.statusConsulta, dados.mensagem || `Vale Nº ${numero} apagado.`, "ok");
+        await carregarVales();
+      } catch (err) {
+        let msg = err.message;
+        if (/a[cç][aã]o inv[aá]lida/i.test(msg) || /apagar_vale/i.test(msg)) {
+          msg =
+            "O Google ainda não tem a função de apagar. Cole o Code.gs novo no Apps Script e publique Nova versão.";
+        }
+        mostrarStatus(els.statusConsulta, msg, "err");
+      }
+    }
+
+    async function reimprimirVale(numero) {
+      try {
+        const dados = await chamarPlanilha({ action: "buscar_vale", numero });
+        const v = dados.vale;
+        proximoNumero = v.numero; // mostra o nº do vale na prévia
+        els.quantidade.value = v.quantidade;
+        els.valor.value = v.valor;
+        els.nome.value = v.nome;
+        els.motorista.value = v.motorista || "";
+        els.placa.value = v.placa || "";
+        els.conferenteExpedidor.value = v.conferenteExpedidor || "";
+        els.conferenteRecebedor.value = v.conferenteRecebedor || "";
+        els.dia.value = v.dia;
+        els.mes.value = v.mes;
+        els.ano.value = v.ano;
+        atualizarPreview();
+        // volta para emitir e imprime
+        document.querySelector('.tabs button[data-tab="emitir"]').click();
+        mostrarStatus(els.status, `Vale Nº ${v.numero} carregado para reimpressão. Assinatura em branco.`, "ok");
+        setTimeout(() => window.print(), 250);
+        // restaura próximo número depois
+        setTimeout(async () => {
+          try {
+            const cfg = await chamarPlanilha({ action: "proximo" });
+            proximoNumero = Number(cfg.numero);
+            atualizarPreview();
+          } catch (_) {}
+        }, 800);
+      } catch (err) {
+        mostrarStatus(els.statusConsulta, err.message, "err");
+      }
+    }
+
+    document.getElementById("btn-buscar-vales").addEventListener("click", carregarVales);
+    document.getElementById("btn-atualizar-vales").addEventListener("click", () => {
+      els.filtroVales.value = "";
+      carregarVales();
+    });
+    els.filtroVales.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") carregarVales();
+    });
+
+    /* —— Baixa de vale —— */
+    els.baixaNumero.addEventListener("input", () => {
+      els.baixaNumero.value = els.baixaNumero.value.replace(/\D/g, "");
+    });
+
+    document.getElementById("form-baixa").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const numero = els.baixaNumero.value.trim();
+      if (!numero) {
+        mostrarStatus(els.statusBaixa, "Bipe ou informe o número do vale.", "err");
+        return;
+      }
+      if (!els.baixaDocumento.checked) {
+        mostrarStatus(
+          els.statusBaixa,
+          "Confirme que o documento assinado foi recebido.",
+          "err"
+        );
+        return;
+      }
+
+      const btn = document.getElementById("btn-baixar-vale");
+      btn.disabled = true;
+      try {
+        const dados = await chamarPlanilha({
+          action: "baixar_vale",
+          numero,
+          documentoAssinado: "sim",
+        });
+        mostrarStatus(els.statusBaixa, dados.mensagem, "ok");
+        els.baixaResultado.textContent =
+          `Vale Nº ${dados.numero} — FECHADO em ${dados.baixadoEm}`;
+        els.baixaNumero.value = "";
+        els.baixaDocumento.checked = false;
+        setTimeout(() => els.baixaNumero.focus(), 50);
+      } catch (err) {
+        mostrarStatus(els.statusBaixa, err.message, "err");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    /* —— Clientes —— */
+    async function carregarClientesCache() {
+      if (!configOk()) return;
+      try {
+        const dados = await chamarPlanilha({ action: "listar_clientes", q: "" });
+        clientesCache = dados.clientes || [];
+      } catch (err) {
+        console.warn("Clientes:", err);
+      }
+    }
+
+    async function carregarClientes() {
+      if (!configOk()) {
+        els.tabelaClientes.innerHTML = `<tr><td colspan="4" class="empty">Configure config.js</td></tr>`;
+        return;
+      }
+      els.tabelaClientes.innerHTML = `<tr><td colspan="4" class="empty">Carregando…</td></tr>`;
+      try {
+        const dados = await chamarPlanilha({
+          action: "listar_clientes",
+          q: els.filtroClientes.value.trim(),
+        });
+        clientesCache = dados.clientes || clientesCache;
+        if (!dados.clientes.length) {
+          els.tabelaClientes.innerHTML = `<tr><td colspan="4" class="empty">Nenhum cliente cadastrado.</td></tr>`;
+          return;
+        }
+        els.tabelaClientes.innerHTML = dados.clientes
+          .map(
+            (c) => `<tr>
+              <td><strong>${escapeHtml(c.nome)}</strong></td>
+              <td>${escapeHtml(c.telefone || "")}</td>
+              <td>${escapeHtml(c.observacao || "")}</td>
+              <td><button type="button" class="link" data-nome="${escapeHtml(c.nome)}">Usar no vale</button></td>
+            </tr>`
+          )
+          .join("");
+
+        els.tabelaClientes.querySelectorAll("button.link").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            els.nome.value = btn.dataset.nome;
+            document.querySelector('.tabs button[data-tab="emitir"]').click();
+            atualizarPreview();
+          });
+        });
+      } catch (err) {
+        els.tabelaClientes.innerHTML = `<tr><td colspan="4" class="empty">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    document.getElementById("form-cliente").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await chamarPlanilha({
+          action: "salvar_cliente",
+          nome: document.getElementById("cli-nome").value.trim(),
+          telefone: document.getElementById("cli-telefone").value.trim(),
+          observacao: document.getElementById("cli-obs").value.trim(),
+        });
+        mostrarStatus(els.statusClientes, "Cliente salvo.", "ok");
+        e.target.reset();
+        await carregarClientesCache();
+        carregarClientes();
+      } catch (err) {
+        mostrarStatus(els.statusClientes, err.message, "err");
+      }
+    });
+
+    document.getElementById("btn-atualizar-clientes").addEventListener("click", carregarClientes);
+    els.filtroClientes.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") carregarClientes();
+    });
+
+    /* —— Motoristas e placas —— */
+    async function carregarMotoristasCache() {
+      if (!configOk()) return;
+      try {
+        const dados = await chamarPlanilha({ action: "listar_motoristas", q: "" });
+        motoristasCache = dados.motoristas || [];
+      } catch (err) {
+        console.warn("Motoristas:", err);
+      }
+    }
+
+    async function carregarMotoristas() {
+      if (!configOk()) {
+        els.tabelaMotoristas.innerHTML = `<tr><td colspan="4" class="empty">Configure config.js</td></tr>`;
+        return;
+      }
+      els.tabelaMotoristas.innerHTML = `<tr><td colspan="4" class="empty">Carregando…</td></tr>`;
+      try {
+        const dados = await chamarPlanilha({
+          action: "listar_motoristas",
+          q: els.filtroMotoristas.value.trim(),
+        });
+        motoristasCache = dados.motoristas || motoristasCache;
+        if (!dados.motoristas.length) {
+          els.tabelaMotoristas.innerHTML = `<tr><td colspan="4" class="empty">Nenhum motorista cadastrado.</td></tr>`;
+          return;
+        }
+        els.tabelaMotoristas.innerHTML = dados.motoristas
+          .map(
+            (m) => `<tr>
+              <td><strong>${escapeHtml(m.nome)}</strong></td>
+              <td>${escapeHtml(m.placa)}</td>
+              <td>${escapeHtml(m.observacao || "")}</td>
+              <td><button type="button" class="link" data-nome="${escapeHtml(m.nome)}" data-placa="${escapeHtml(m.placa)}">Usar no vale</button></td>
+            </tr>`
+          )
+          .join("");
+
+        els.tabelaMotoristas.querySelectorAll("button.link").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            els.motorista.value = btn.dataset.nome;
+            els.placa.value = btn.dataset.placa;
+            document.querySelector('.tabs button[data-tab="emitir"]').click();
+            atualizarPreview();
+          });
+        });
+      } catch (err) {
+        els.tabelaMotoristas.innerHTML = `<tr><td colspan="4" class="empty">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    document.getElementById("form-motorista").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const placa = document
+        .getElementById("mot-placa")
+        .value.trim()
+        .toUpperCase()
+        .replace(/\s+/g, "");
+      try {
+        await chamarPlanilha({
+          action: "salvar_motorista",
+          nome: document.getElementById("mot-nome").value.trim(),
+          placa,
+          observacao: document.getElementById("mot-obs").value.trim(),
+        });
+        mostrarStatus(els.statusMotoristas, "Motorista e placa salvos.", "ok");
+        e.target.reset();
+        await carregarMotoristasCache();
+        carregarMotoristas();
+      } catch (err) {
+        mostrarStatus(els.statusMotoristas, err.message, "err");
+      }
+    });
+
+    document.getElementById("mot-placa").addEventListener("input", (e) => {
+      e.target.value = e.target.value.toUpperCase().replace(/\s+/g, "");
+    });
+    document
+      .getElementById("btn-atualizar-motoristas")
+      .addEventListener("click", carregarMotoristas);
+    els.filtroMotoristas.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") carregarMotoristas();
+    });
+
+    /* —— Conferentes —— */
+    async function carregarConferentesCache() {
+      if (!configOk()) return;
+      try {
+        const dados = await chamarPlanilha({ action: "listar_conferentes", q: "" });
+        conferentesCache = dados.conferentes || [];
+      } catch (err) {
+        console.warn("Conferentes:", err);
+      }
+    }
+
+    async function carregarConferentes() {
+      if (!configOk()) {
+        els.tabelaConferentes.innerHTML = `<tr><td colspan="4" class="empty">Configure config.js</td></tr>`;
+        return;
+      }
+      els.tabelaConferentes.innerHTML = `<tr><td colspan="4" class="empty">Carregando…</td></tr>`;
+      try {
+        const dados = await chamarPlanilha({
+          action: "listar_conferentes",
+          q: els.filtroConferentes.value.trim(),
+        });
+        conferentesCache = dados.conferentes || conferentesCache;
+        if (!dados.conferentes.length) {
+          els.tabelaConferentes.innerHTML = `<tr><td colspan="4" class="empty">Nenhum conferente cadastrado.</td></tr>`;
+          return;
+        }
+        els.tabelaConferentes.innerHTML = dados.conferentes
+          .map(
+            (c) => `<tr>
+              <td><strong>${escapeHtml(c.nome)}</strong></td>
+              <td>${escapeHtml(c.tipo === "RECEBEDOR" ? "Recebedor" : "Expedidor")}</td>
+              <td>${escapeHtml(c.observacao || "")}</td>
+              <td><button type="button" class="link" data-nome="${escapeHtml(c.nome)}" data-tipo="${escapeHtml(c.tipo)}">Usar no vale</button></td>
+            </tr>`
+          )
+          .join("");
+
+        els.tabelaConferentes.querySelectorAll("button.link").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            if (btn.dataset.tipo === "RECEBEDOR") {
+              els.conferenteRecebedor.value = btn.dataset.nome;
+            } else {
+              els.conferenteExpedidor.value = btn.dataset.nome;
+            }
+            document.querySelector('.tabs button[data-tab="emitir"]').click();
+            atualizarPreview();
+          });
+        });
+      } catch (err) {
+        els.tabelaConferentes.innerHTML = `<tr><td colspan="4" class="empty">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    document.getElementById("form-conferente").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await chamarPlanilha({
+          action: "salvar_conferente",
+          nome: document.getElementById("conf-nome").value.trim(),
+          tipo: document.getElementById("conf-tipo").value,
+          observacao: document.getElementById("conf-obs").value.trim(),
+        });
+        mostrarStatus(els.statusConferentes, "Conferente salvo.", "ok");
+        e.target.reset();
+        await carregarConferentesCache();
+        carregarConferentes();
+      } catch (err) {
+        mostrarStatus(els.statusConferentes, err.message, "err");
+      }
+    });
+
+    document
+      .getElementById("btn-atualizar-conferentes")
+      .addEventListener("click", carregarConferentes);
+    els.filtroConferentes.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") carregarConferentes();
+    });
+
+    document.getElementById("form-preco").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("btn-salvar-preco");
+      const bruto = String(els.inputPreco.value || "").trim().replace(",", ".");
+      const valorNum = Number(bruto);
+
+      if (!bruto || isNaN(valorNum) || valorNum <= 0) {
+        mostrarStatus(
+          els.statusPreco,
+          "Digite um valor maior que zero (ex: 15 ou 15.50).",
+          "err"
+        );
+        return;
+      }
+
+      btn.disabled = true;
+      try {
+        const dados = await chamarPlanilha({
+          action: "definir_preco",
+          precoUnitario: String(valorNum),
+          preco_unitario: String(valorNum),
+        });
+        const salvo = Number(dados.precoUnitario);
+        if (!salvo || salvo <= 0) {
+          throw new Error("A planilha retornou preço zerado. Atualize o Code.gs e publique Nova versão.");
+        }
+        precoUnitario = salvo;
+        atualizarPreview();
+        mostrarStatus(
+          els.statusPreco,
+          `Valor do pallet atualizado para ${formatarMoeda(precoUnitario)}. Novos vales usarão este preço.`,
+          "ok"
+        );
+      } catch (err) {
+        mostrarStatus(els.statusPreco, err.message, "err");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    els.inputPreco.addEventListener("input", () => {
+      const temp = Number(String(els.inputPreco.value).replace(",", "."));
+      if (!isNaN(temp) && temp >= 0 && els.precoExemplo) {
+        els.precoExemplo.innerHTML =
+          `Exemplo: 10 pallets × <strong>${formatarMoeda(temp)}</strong> = <strong>${formatarMoeda(10 * temp)}</strong>`;
+      }
+    });
+
+    document.getElementById("form-marca").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("btn-salvar-marca");
+      const nomeEmpresa = els.marcaNome.value.trim();
+      const subtituloEmpresa = els.marcaSubtitulo.value.trim();
+      let logoUrl = els.marcaLogoUrl.value.trim();
+      const arquivoLogo = els.marcaLogoArquivo.files[0];
+
+      if (!nomeEmpresa) {
+        mostrarStatus(els.statusMarca, "Informe o nome da empresa.", "err");
+        return;
+      }
+      if (arquivoLogo && arquivoLogo.size > 2 * 1024 * 1024) {
+        mostrarStatus(els.statusMarca, "A imagem deve ter no máximo 2 MB.", "err");
+        return;
+      }
+
+      btn.disabled = true;
+      try {
+        if (arquivoLogo) {
+          mostrarStatus(els.statusMarca, "Preparando e salvando a logo…", "ok");
+          const imagemBase64 = await reduzirLogoParaSistema(arquivoLogo);
+          await enviarLogoPorPedacos(imagemBase64);
+        }
+
+        const payloadMarca = {
+          action: "definir_marca",
+          nomeEmpresa,
+          subtituloEmpresa,
+        };
+        if (arquivoLogo) {
+          payloadMarca.manter_logo = "sim";
+        } else {
+          payloadMarca.logoUrl = logoUrl;
+        }
+
+        const dados = await chamarPlanilha(payloadMarca);
+        aplicarMarca(dados.marca);
+        els.marcaLogoArquivo.value = "";
+        els.nomeArquivoLogo.textContent = "Nenhuma imagem selecionada.";
+        mostrarStatus(
+          els.statusMarca,
+          arquivoLogo
+            ? "Logo fixada no sistema e identidade atualizada."
+            : dados.mensagem || "Identidade da empresa atualizada.",
+          "ok"
+        );
+      } catch (err) {
+        mostrarStatus(els.statusMarca, err.message, "err");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    els.marcaLogoArquivo.addEventListener("change", () => {
+      const arquivo = els.marcaLogoArquivo.files[0];
+      els.nomeArquivoLogo.textContent = arquivo
+        ? `Imagem selecionada: ${arquivo.name}`
+        : "Nenhuma imagem selecionada.";
+    });
+
+    /* —— Start —— */
+    aplicarMarca(marcaConfig);
+    preencherDataHoje();
+    atualizarPreview();
+
+    (async function init() {
+      if (!configOk()) {
+        mostrarStatus(els.status, "Configure a URL do Apps Script em config.js.", "err");
+        return;
+      }
+      try {
+        const cfg = await chamarPlanilha({ action: "ping" });
+        proximoNumero = Number(cfg.proximo);
+        precoUnitario = Number(cfg.precoUnitario) || PRECO_FALLBACK;
+        if (cfg.marca) aplicarMarca(cfg.marca);
+        atualizarPreview();
+        await carregarClientesCache();
+        await carregarMotoristasCache();
+        await carregarConferentesCache();
+        mostrarStatus(
+          els.status,
+          `Conectado: ${cfg.planilha} · Próximo Nº ${proximoNumero} · ${formatarMoeda(precoUnitario)}/pallet`,
+          "ok"
+        );
+      } catch (err) {
+        mostrarStatus(
+          els.status,
+          `${err.message} — No Code.gs cole o SPREADSHEET_ID e publique Nova versão.`,
+          "err"
+        );
+      }
+    })();
+  </script>
+</body>
+</html>
