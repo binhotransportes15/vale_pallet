@@ -1343,7 +1343,6 @@
   <script>
     const SCRIPT_URL = (window.VALE_CONFIG && window.VALE_CONFIG.scriptUrl) || "";
     const PRECO_FALLBACK = (window.VALE_CONFIG && window.VALE_CONFIG.precoUnitarioFallback) || 10;
-    const SENHA_EXCLUSAO = (window.VALE_CONFIG && window.VALE_CONFIG.senhaExclusao) || "1982";
     const SESSION_KEY = "vale_pallet_sessao_filial";
     /** Tempo de uso após login (ms). Depois disso a tela bloqueia. */
     const SESSION_TTL_MS = 30 * 60 * 1000;
@@ -2384,17 +2383,16 @@
         return;
       }
 
-      const senha = window.prompt(
-        `Apagar o vale Nº ${numero}?\nDigite a senha de exclusão:`
-      );
-      if (senha === null) return;
-
-      if (String(senha) !== String(SENHA_EXCLUSAO)) {
-        mostrarStatus(els.statusConsulta, "Senha incorreta. Exclusão cancelada.", "err");
+      if (!sessaoFilial) {
+        mostrarStatus(els.statusConsulta, "Faça login na filial para apagar.", "err");
         return;
       }
 
-      if (!window.confirm(`Confirma apagar o vale Nº ${numero}? Esta ação não tem volta.`)) {
+      if (
+        !window.confirm(
+          `Apagar o vale Nº ${numero} da filial ${sessaoFilial.filial}?\nEsta ação não tem volta.`
+        )
+      ) {
         return;
       }
 
@@ -2403,7 +2401,6 @@
           payloadSessao({
             action: "apagar_vale",
             numero: String(numero),
-            senha: String(senha),
           })
         );
         mostrarStatus(els.statusConsulta, dados.mensagem || `Vale Nº ${numero} apagado.`, "ok");

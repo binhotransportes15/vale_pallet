@@ -25,8 +25,6 @@ var ABA_CONFIG = "Config";
 var ABA_FILIAIS = "Filiais";
 var NUMERO_INICIAL = 1;
 var PRECO_PADRAO = 10;
-/** Senha para apagar vales (deve bater com config.js) */
-var SENHA_EXCLUSAO = "1982";
 /** Filiais oficiais (usuário = nome da filial). Senha só no 1º acesso. */
 var FILIAIS_PADRAO = [
   "ALTAMIRA",
@@ -449,10 +447,6 @@ function buscarVale_(numero, filialOpcional) {
 }
 
 function apagarVale_(dados) {
-  if (String(dados.senha || "") !== SENHA_EXCLUSAO) {
-    return json_({ ok: false, erro: "Senha incorreta. Exclusão cancelada." });
-  }
-
   var numero = Number(dados.numero);
   if (isNaN(numero)) {
     return json_({ ok: false, erro: "Número do vale inválido." });
@@ -465,6 +459,13 @@ function apagarVale_(dados) {
       erro: "Faça login na filial para apagar vales.",
     });
   }
+
+  // Confere senha da sessão da filial (mesmo critério do emitir)
+  var auth = exigirFilialLogada_(dados.filial, dados.senhaFilial || dados.senha_filial);
+  if (auth.erro) {
+    return json_({ ok: false, erro: auth.erro });
+  }
+
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);
 

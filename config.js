@@ -7,7 +7,4 @@ window.VALE_CONFIG = {
 
   /** Usado só se a aba Config ainda não existir na planilha */
   precoUnitarioFallback: 10,
-
-  /** Senha para apagar vales (também conferida no Apps Script) */
-  senhaExclusao: "1982",
 };

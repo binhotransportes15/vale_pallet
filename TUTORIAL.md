@@ -85,7 +85,7 @@ Aba **Consultar**.
 - Colunas principais: Nº, Filial, Qtd, Valor, Cliente, Motorista, Placa, Conferentes, Situação, Datas.
 - Use a busca por número, cliente, motorista, placa, filial etc.
 - **Reimprimir:** disponível para qualquer vale (só leitura/impressão).
-- **Apagar:** só aparece nos vales da **sua** filial. Nos de outra filial fica “Só leitura”.
+- **Apagar:** só nos vales da **sua** filial (pede confirmação; sem senha extra). Nos de outra filial fica “Só leitura”.
 - **Baixa:** na aba Baixa, só funciona para vales da filial logada.
 
 Resumo de privilégios por login:
