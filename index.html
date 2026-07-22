@@ -780,7 +780,7 @@
   <div id="login-gate" class="login-gate" role="dialog" aria-modal="true" aria-labelledby="login-title">
     <form id="form-login" class="login-card" autocomplete="off">
       <h2 id="login-title">Login por filial</h2>
-      <p class="subtitle">A filial é o usuário. No primeiro acesso você cria a senha; depois ela fica salva na planilha.</p>
+      <p class="subtitle">A filial é o usuário. Sessão válida por <strong>30 minutos</strong>; depois a tela bloqueia e é preciso digitar a senha de novo.</p>
 
       <div class="field">
         <label for="login-filial">Filial (usuário)</label>
@@ -814,6 +814,7 @@
     </div>
     <div class="session-chip" id="session-chip">
       <span>Filial: <strong id="session-filial-nome">—</strong></span>
+      <span id="session-tempo" style="color:#aaa;">30:00</span>
       <button type="button" id="btn-sair-filial">Sair</button>
     </div>
     <nav class="tabs" role="tablist">
@@ -1344,6 +1345,8 @@
     const PRECO_FALLBACK = (window.VALE_CONFIG && window.VALE_CONFIG.precoUnitarioFallback) || 10;
     const SENHA_EXCLUSAO = (window.VALE_CONFIG && window.VALE_CONFIG.senhaExclusao) || "1982";
     const SESSION_KEY = "vale_pallet_sessao_filial";
+    /** Tempo de uso após login (ms). Depois disso a tela bloqueia. */
+    const SESSION_TTL_MS = 30 * 60 * 1000;
 
     let proximoNumero = null;
     let precoUnitario = PRECO_FALLBACK;
@@ -1356,7 +1359,8 @@
     let motoristasCache = [];
     let conferentesCache = [];
     let filiaisCache = [];
-    let sessaoFilial = null; // { filial, senha }
+    let sessaoFilial = null; // { filial, senha, expiresAt }
+    let sessionTimerId = null;
     let suggestIndex = -1;
     let suggestMotoristaIndex = -1;
     let suggestExpedidorIndex = -1;
@@ -1383,6 +1387,7 @@
       btnLogin: document.getElementById("btn-login"),
       sessionChip: document.getElementById("session-chip"),
       sessionFilialNome: document.getElementById("session-filial-nome"),
+      sessionTempo: document.getElementById("session-tempo"),
       btnSairFilial: document.getElementById("btn-sair-filial"),
       badgeNumero: document.getElementById("badge-numero"),
       badgePreco: document.getElementById("badge-preco"),
@@ -1431,31 +1436,100 @@
       return SCRIPT_URL && !String(SCRIPT_URL).includes("COLE_AQUI");
     }
 
+    function formatarTempoRestante(ms) {
+      const total = Math.max(0, Math.ceil(ms / 1000));
+      const min = Math.floor(total / 60);
+      const seg = total % 60;
+      return `${String(min).padStart(2, "0")}:${String(seg).padStart(2, "0")}`;
+    }
+
+    function sessaoAindaValida(dados) {
+      if (!dados || !dados.filial || !dados.senha || !dados.expiresAt) return false;
+      return Number(dados.expiresAt) > Date.now();
+    }
+
+    function pararMonitorSessao() {
+      if (sessionTimerId) {
+        clearInterval(sessionTimerId);
+        sessionTimerId = null;
+      }
+    }
+
+    function bloquearPorTimeout(motivo) {
+      limparSessao();
+      atualizarUiSessao();
+      els.loginSenha.value = "";
+      els.loginConfirm.value = "";
+      mostrarStatus(
+        els.statusLogin,
+        motivo || "Sessão expirada (30 min). Digite a senha novamente.",
+        "err"
+      );
+      carregarFiliaisLogin().catch(() => {});
+    }
+
+    function atualizarRelogioSessao() {
+      if (!sessaoFilial || !sessaoFilial.expiresAt) {
+        if (els.sessionTempo) els.sessionTempo.textContent = "—";
+        return;
+      }
+      const resto = Number(sessaoFilial.expiresAt) - Date.now();
+      if (resto <= 0) {
+        bloquearPorTimeout();
+        return;
+      }
+      if (els.sessionTempo) {
+        els.sessionTempo.textContent = `resta ${formatarTempoRestante(resto)}`;
+        els.sessionTempo.style.color = resto <= 5 * 60 * 1000 ? "#e8b84a" : "#aaa";
+      }
+    }
+
+    function iniciarMonitorSessao() {
+      pararMonitorSessao();
+      atualizarRelogioSessao();
+      sessionTimerId = setInterval(atualizarRelogioSessao, 1000);
+    }
+
     function lerSessaoSalva() {
       try {
         const raw = sessionStorage.getItem(SESSION_KEY);
         if (!raw) return null;
         const dados = JSON.parse(raw);
-        if (!dados || !dados.filial || !dados.senha) return null;
-        return { filial: String(dados.filial).toUpperCase(), senha: String(dados.senha) };
+        if (!sessaoAindaValida(dados)) {
+          sessionStorage.removeItem(SESSION_KEY);
+          return null;
+        }
+        return {
+          filial: String(dados.filial).toUpperCase(),
+          senha: String(dados.senha),
+          expiresAt: Number(dados.expiresAt),
+        };
       } catch (_) {
         return null;
       }
     }
 
     function salvarSessao(filial, senha) {
-      sessaoFilial = { filial: String(filial).toUpperCase(), senha: String(senha) };
+      sessaoFilial = {
+        filial: String(filial).toUpperCase(),
+        senha: String(senha),
+        expiresAt: Date.now() + SESSION_TTL_MS,
+      };
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessaoFilial));
+      iniciarMonitorSessao();
     }
 
     function limparSessao() {
       sessaoFilial = null;
       sessionStorage.removeItem(SESSION_KEY);
+      pararMonitorSessao();
+      if (els.sessionTempo) els.sessionTempo.textContent = "—";
     }
 
     function exigirSessao() {
-      if (!sessaoFilial || !sessaoFilial.filial || !sessaoFilial.senha) {
-        throw new Error("Faça login na filial para continuar.");
+      if (!sessaoAindaValida(sessaoFilial)) {
+        bloquearPorTimeout();
+        throw new Error("Sessão expirada. Faça login novamente.");
       }
       return sessaoFilial;
     }
@@ -1472,16 +1546,18 @@
     }
 
     function atualizarUiSessao() {
-      if (sessaoFilial && sessaoFilial.filial) {
+      if (sessaoAindaValida(sessaoFilial)) {
         document.body.classList.remove("locked-login");
         els.loginGate.hidden = true;
         els.sessionChip.classList.add("visible");
         els.sessionFilialNome.textContent = sessaoFilial.filial;
+        atualizarRelogioSessao();
       } else {
         document.body.classList.add("locked-login");
         els.loginGate.hidden = false;
         els.sessionChip.classList.remove("visible");
         els.sessionFilialNome.textContent = "—";
+        if (els.sessionTempo) els.sessionTempo.textContent = "—";
       }
     }
 
@@ -2813,7 +2889,7 @@
       atualizarUiSessao();
       els.loginSenha.value = "";
       els.loginConfirm.value = "";
-      mostrarStatus(els.statusLogin, "Sessão encerrada. Entre novamente.", "ok");
+      mostrarStatus(els.statusLogin, "Sessão encerrada. Digite a senha para entrar.", "ok");
       carregarFiliaisLogin().catch((err) => {
         mostrarStatus(els.statusLogin, err.message, "err");
       });
@@ -2823,6 +2899,8 @@
     aplicarMarca(marcaConfig);
     preencherDataHoje();
     atualizarPreview();
+    // Sempre pede senha ao abrir o site (não restaura sessão antiga).
+    limparSessao();
     atualizarUiSessao();
 
     (async function init() {
@@ -2844,26 +2922,9 @@
         return;
       }
 
-      const salva = lerSessaoSalva();
-      if (salva) {
-        try {
-          const dados = await chamarPlanilha({
-            action: "login",
-            filial: salva.filial,
-            senha: salva.senha,
-          });
-          salvarSessao(dados.filial || salva.filial, salva.senha);
-          await iniciarAppAposLogin();
-          return;
-        } catch (_) {
-          limparSessao();
-          atualizarUiSessao();
-        }
-      }
-
       mostrarStatus(
         els.statusLogin,
-        "Escolha a filial. No primeiro uso, cadastre a senha.",
+        "Digite a senha da filial. Após o login, a sessão dura 30 minutos.",
         "ok"
       );
     })();
