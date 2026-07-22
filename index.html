@@ -1010,7 +1010,7 @@
     <div class="app" style="grid-template-columns: 1fr;">
       <section class="consulta-wrap panel" style="position: static; max-width: 100%;">
         <h2>Consultar vales</h2>
-        <p class="subtitle">Mostra os vales da <strong>filial logada</strong>, salvos na planilha Google Sheets.</p>
+        <p class="subtitle">Todas as filiais veem os vales. <strong>Apagar</strong> e <strong>baixa</strong> só na filial dona do vale.</p>
 
         <div class="toolbar">
           <input id="filtro-vales" type="search" placeholder="Buscar por nº, cliente, motorista, placa, conferente…" />
@@ -2324,23 +2324,31 @@
           payloadSessao({
             action: "listar_vales",
             filtro: els.filtroVales.value.trim(),
-            limite: 150,
+            limite: 200,
           })
         );
+        const minhaFilial = String(sessaoFilial.filial || "").toUpperCase();
         const vales = (dados.vales || []).filter((v) => {
           const n = Number(v.numero);
           return v.numero !== "" && v.numero != null && !isNaN(n) && n > 0;
         });
 
         if (!vales.length) {
-          els.tabelaVales.innerHTML = `<tr><td colspan="13" class="empty">Nenhum vale desta filial.</td></tr>`;
+          els.tabelaVales.innerHTML = `<tr><td colspan="13" class="empty">Nenhum vale encontrado.</td></tr>`;
           return;
         }
         els.tabelaVales.innerHTML = vales
-          .map(
-            (v) => `<tr>
+          .map((v) => {
+            const filialVale = String(v.filial || "").toUpperCase();
+            const ehMinha = filialVale && filialVale === minhaFilial;
+            const acoes = ehMinha
+              ? `<button type="button" class="link" data-num="${escapeHtml(v.numero)}">Reimprimir</button>
+                 <button type="button" class="link danger" data-apagar="${escapeHtml(v.numero)}">Apagar</button>`
+              : `<button type="button" class="link" data-num="${escapeHtml(v.numero)}">Reimprimir</button>
+                 <span style="display:block;margin-top:0.25rem;color:#999;font-size:0.72rem;">Só leitura (outra filial)</span>`;
+            return `<tr>
               <td><strong>${escapeHtml(v.numero)}</strong></td>
-              <td>${escapeHtml(v.filial || sessaoFilial.filial)}</td>
+              <td>${escapeHtml(v.filial || "—")}</td>
               <td>${escapeHtml(v.quantidade)}</td>
               <td>${escapeHtml(v.valor)}</td>
               <td>${escapeHtml(v.nome)}</td>
@@ -2354,12 +2362,9 @@
               </td>
               <td>${escapeHtml(v.data || [v.dia, v.mes, v.ano].filter(Boolean).join("/"))}</td>
               <td>${escapeHtml(formatarEmitido(v.emitidoEm))}</td>
-              <td>
-                <button type="button" class="link" data-num="${escapeHtml(v.numero)}">Reimprimir</button>
-                <button type="button" class="link danger" data-apagar="${escapeHtml(v.numero)}">Apagar</button>
-              </td>
-            </tr>`
-          )
+              <td>${acoes}</td>
+            </tr>`;
+          })
           .join("");
 
         els.tabelaVales.querySelectorAll("button.link[data-num]").forEach((btn) => {

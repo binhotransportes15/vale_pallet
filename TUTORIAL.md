@@ -81,11 +81,22 @@ Dicas:
 
 Aba **Consultar**.
 
-- Mostra **somente os vales da filial logada**.
+- Mostra os vales de **todas as filiais** (visão compartilhada).
 - Colunas principais: Nº, Filial, Qtd, Valor, Cliente, Motorista, Placa, Conferentes, Situação, Datas.
-- Use a busca por número, cliente, motorista, placa etc.
-- **Reimprimir:** carrega o vale para imprimir de novo (assinatura em branco).
-- **Apagar:** pede a **senha de exclusão** (não é a senha da filial). Use com cuidado — não tem volta.
+- Use a busca por número, cliente, motorista, placa, filial etc.
+- **Reimprimir:** disponível para qualquer vale (só leitura/impressão).
+- **Apagar:** só aparece nos vales da **sua** filial. Nos de outra filial fica “Só leitura”.
+- **Baixa:** na aba Baixa, só funciona para vales da filial logada.
+
+Resumo de privilégios por login:
+
+| Ação | Própria filial | Outra filial |
+|------|----------------|--------------|
+| Ver na consulta | Sim | Sim |
+| Reimprimir | Sim | Sim |
+| Emitir / lançar | Sim | — |
+| Apagar | Sim | Não |
+| Dar baixa | Sim | Não |
 
 ---
 
@@ -101,7 +112,7 @@ Use quando o pallet / documento voltar e o vale for fechado.
 
 O status passa de **EM ABERTO** para **FECHADO**, com data/hora da baixa.
 
-Só é possível dar baixa em vale da **mesma filial** logada. Vale já fechado não recebe segunda baixa.
+Só é possível dar baixa em vale da **mesma filial** logada (dono do lançamento). Vale de outra filial pode ser visto na consulta, mas a baixa é recusada. Vale já fechado não recebe segunda baixa.
 
 ---
 
@@ -170,7 +181,7 @@ Você pode continuar abrindo e usando a planilha normalmente. O site e a planilh
 O Apps Script pode estar desatualizado. O responsável deve colar o `Code.gs` novo e publicar uma **Nova versão** da implantação.
 
 **Não aparece vale de outra filial**  
-É normal: cada login só enxerga a própria filial.
+Agora a consulta mostra todas. Se não aparecer, atualize o `Code.gs` no Apps Script (Nova versão) e dê Ctrl+F5 no site.
 
 **Esqueci a senha da filial**  
 Somente quem tem acesso à planilha: abra a aba **Filiais**, apague (ou troque) a senha daquela linha.  

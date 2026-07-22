@@ -323,14 +323,16 @@ function listarVales_(dados) {
   var sheet = obterAbaVales_();
   var ultima = sheet.getLastRow();
   if (ultima < 2) {
-    return json_({ ok: true, vales: [] });
+    return json_({ ok: true, vales: [], filialLogada: normalizarFilial_(dados.filial || "") });
   }
 
   var rows = sheet.getRange(2, 1, ultima, 15).getValues();
   var filtro = String(dados.filtro || dados.q || "")
     .trim()
     .toLowerCase();
-  var filialFiltro = normalizarFilial_(dados.filial || "");
+  // Consulta é compartilhada: todas as filiais veem todos os vales.
+  // Privilegio de apagar/baixar fica na filial dona (checado nas outras ações).
+  var filialLogada = normalizarFilial_(dados.filial || "");
   var limite = Number(dados.limite) || 100;
   var vales = [];
 
@@ -357,10 +359,6 @@ function listarVales_(dados) {
       data: [r[4], r[5], r[6]].filter(Boolean).join("/") || "",
     };
 
-    if (filialFiltro && normalizarFilial_(item.filial) !== filialFiltro) {
-      continue;
-    }
-
     if (filtro) {
       var blob = [
         item.numero,
@@ -385,7 +383,7 @@ function listarVales_(dados) {
     if (vales.length >= limite) break;
   }
 
-  return json_({ ok: true, vales: vales, filial: filialFiltro || "" });
+  return json_({ ok: true, vales: vales, filialLogada: filialLogada });
 }
 
 /** Aceita só linhas de vale real (ignora cabeçalho e linhas vazias) */
@@ -417,19 +415,13 @@ function buscarVale_(numero, filialOpcional) {
   }
 
   var alvo = Number(numero);
-  var filialFiltro = normalizarFilial_(filialOpcional || "");
+  // Leitura/reimpressão: qualquer filial pode ver.
   var rows = sheet.getRange(2, 1, ultima, 15).getValues();
 
   for (var i = 0; i < rows.length; i++) {
     if (Number(rows[i][0]) === alvo) {
       var r = rows[i];
       var filialVale = String(r[14] || "").trim();
-      if (filialFiltro && normalizarFilial_(filialVale) !== filialFiltro) {
-        return json_({
-          ok: false,
-          erro: "Vale Nº " + numero + " não pertence à filial " + filialFiltro + ".",
-        });
-      }
       return json_({
         ok: true,
         vale: {
@@ -467,6 +459,12 @@ function apagarVale_(dados) {
   }
 
   var filialFiltro = normalizarFilial_(dados.filial || "");
+  if (!filialFiltro) {
+    return json_({
+      ok: false,
+      erro: "Faça login na filial para apagar vales.",
+    });
+  }
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);
 
@@ -481,10 +479,13 @@ function apagarVale_(dados) {
     for (var i = 0; i < rows.length; i++) {
       if (Number(rows[i][0]) === numero) {
         var filialVale = normalizarFilial_(rows[i][14] || "");
-        if (filialFiltro && filialVale && filialVale !== filialFiltro) {
+        if (!filialVale || filialVale !== filialFiltro) {
           return json_({
             ok: false,
-            erro: "Vale Nº " + numero + " não pertence à filial " + filialFiltro + ".",
+            erro:
+              "Só a filial dona do vale pode apagar. Este vale é de " +
+              (filialVale || "filial não informada") +
+              ".",
           });
         }
         sheet.deleteRow(i + 2);
@@ -516,6 +517,12 @@ function baixarVale_(dados) {
   }
 
   var filialFiltro = normalizarFilial_(dados.filial || "");
+  if (!filialFiltro) {
+    return json_({
+      ok: false,
+      erro: "Faça login na filial para dar baixa em vales.",
+    });
+  }
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);
 
@@ -531,10 +538,13 @@ function baixarVale_(dados) {
       if (Number(rows[i][0]) !== numero) continue;
 
       var filialVale = normalizarFilial_(rows[i][14] || "");
-      if (filialFiltro && filialVale && filialVale !== filialFiltro) {
+      if (!filialVale || filialVale !== filialFiltro) {
         return json_({
           ok: false,
-          erro: "Vale Nº " + numero + " não pertence à filial " + filialFiltro + ".",
+          erro:
+            "Só a filial dona do vale pode dar baixa. Este vale é de " +
+            (filialVale || "filial não informada") +
+            ".",
         });
       }
 
