@@ -2,7 +2,7 @@
 
 Guia rápido para operar o sistema online. Os dados ficam na planilha do Google Sheets.
 
-**Site:** https://carloscardosokr-boop.github.io/vale_pallet/
+**Site:** https://binhotransportes15.github.io/vale_pallet/
 
 ---
 
